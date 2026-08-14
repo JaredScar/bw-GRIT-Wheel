@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { RolesGuard } from './auth/roles.guard';
 import { NominationUpvote } from './nominations/nomination-upvote.entity';
 import { Nomination } from './nominations/nomination.entity';
 import { NominationsModule } from './nominations/nominations.module';
@@ -39,6 +40,11 @@ import { User } from './users/user.entity';
     PeopleModule,
     AnalyticsModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
+  // Order matters: Nest runs global guards in registration order, so JwtAuthGuard
+  // populates request.user before RolesGuard reads the roles off it.
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
 })
 export class AppModule {}

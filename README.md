@@ -61,7 +61,8 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
   the wheel picks a winner.
 - Nominations are grouped into **rounds** (one per all-hands meeting). New nominations
   automatically go into whichever round is currently "open."
-- An **admin** (any signed-in user whose email is on the `ADMIN_EMAILS` allow-list) can:
+- An **admin** (any signed-in user holding the `admin` role — see
+  [Roles and admin access](#roles-and-admin-access)) can:
   - Start a new round (this closes the previous one)
   - Spin an animated wheel — choose between one **equally-weighted** slice per unique
     nominee, or a slice **weighted by nomination count** (people nominated more times
@@ -127,7 +128,8 @@ before it will start. In the [Google Cloud console](https://console.cloud.google
    - `ADMIN_EMAILS` — a comma-separated list of `@bitwarden.com` emails that should
      have admin access (create rounds, spin the wheel, manage photos, view
      analytics). Anyone else can still sign in and use the rest of the site, just not
-     `/admin`.
+     `/admin`. See [Roles and admin access](#roles-and-admin-access) for how this
+     interacts with roles stored in the database.
    - `FRONTEND_URL` — the public URL of the app; people are sent back here after
      signing in with Google.
    - `COOKIE_SECURE` — set to `true` only if the site is served over HTTPS.
@@ -173,6 +175,51 @@ Edit `seedRounds` in that file to add your own organization's real historical
 winners — just don't commit real employee names/emails/nomination text if this
 repo (or your fork of it) is public.
 
+## Roles and admin access
+
+Authorization uses the standard NestJS RBAC pattern: a `Role` enum, a `@Roles()`
+decorator, and a global `RolesGuard` that runs after the authentication guard. There
+are two roles today, `user` and `admin`, and they're stored on the `users.roles`
+column, so **admins can be changed without a redeploy**.
+
+Routes without a `@Roles()` decorator are available to any signed-in Bitwarden
+account. Admin-only routes are the round lifecycle (`GET /rounds/current`,
+`GET /rounds/:id/wheel`, `POST /rounds`, `POST /rounds/:id/spin`), the photo
+directory management endpoints, and analytics.
+
+### How someone becomes an admin
+
+`ADMIN_EMAILS` acts as the **floor**, and the database is where you grant anything
+extra:
+
+- On **first sign-in**, a brand new user listed in `ADMIN_EMAILS` is created with the
+  `admin` role. After that, their roles are never overwritten by the env var on
+  subsequent sign-ins, so database changes stick.
+- On **every startup**, anyone on the `ADMIN_EMAILS` list is granted the `admin` role
+  if they don't already have it. This backfills accounts that predate the roles
+  column and guarantees you can always recover admin access through configuration.
+  It's additive, so admins you granted in the database are never revoked by it.
+
+To promote or demote someone directly:
+
+```bash
+# Promote
+docker compose exec db psql -U postgres -d grit_wheel \
+  -c "UPDATE users SET roles='user,admin' WHERE email='someone@bitwarden.com';"
+
+# Demote
+docker compose exec db psql -U postgres -d grit_wheel \
+  -c "UPDATE users SET roles='user' WHERE email='someone@bitwarden.com';"
+```
+
+Changes take effect on the person's **very next request** — the session cookie stores
+only a user ID, and roles are read from the database on each request, so nobody needs
+to sign out and back in.
+
+One caveat worth remembering: a database-only demotion of someone who is still listed
+in `ADMIN_EMAILS` will be undone the next time the backend boots. To demote them for
+good, remove them from `ADMIN_EMAILS` as well.
+
 ## Running locally without Docker (development)
 
 **Backend**
@@ -213,8 +260,8 @@ Then visit http://localhost:4200.
   nominators, and category champions.
 - **Rounds & Winners**: `/rounds` lists every round, its status, and the winner once
   the wheel has been spun.
-- **Admin**: `/admin` — only visible/usable if your email is on the `ADMIN_EMAILS`
-  allow-list. From there you can:
+- **Admin**: `/admin` — only visible/usable if you hold the `admin` role. From there
+  you can:
   - Start a new round for the upcoming all-hands
   - Spin the wheel for the current round once nominations are in — toggle "Weight
     slices by number of nominations" beforehand if you want people with more
@@ -246,8 +293,14 @@ Then visit http://localhost:4200.
   profile and refreshed on each sign-in.
 - Sessions are a signed JWT stored in an `httpOnly` cookie (`grit_session`), valid for
   30 days; there's no separate "remember me" toggle.
-- Admin access is a simple email allow-list (`ADMIN_EMAILS`), not a separate
-  role/permissions system — anyone on the list has full admin rights.
+- Authorization is role-based (`user` / `admin`) with roles persisted per user in the
+  database and enforced by a global `RolesGuard`; `ADMIN_EMAILS` seeds and re-grants
+  the `admin` role rather than being checked directly on each request. See
+  [Roles and admin access](#roles-and-admin-access). There are no finer-grained
+  permissions — anyone with `admin` has full admin rights.
+- Roles are read from the database on every request rather than being baked into the
+  session JWT, so promoting or demoting someone takes effect immediately without
+  forcing them to sign in again.
 - Only the **nominator's** identity can be hidden (anonymous nominations); the
   **nominee** is always shown, since the whole point is public recognition.
 - Nominations are visible immediately upon submission — there is no moderation queue.
