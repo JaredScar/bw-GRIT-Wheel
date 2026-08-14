@@ -1,0 +1,18 @@
+.login-page {
+  max-width: 460px;
+  margin: 3rem auto;
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.success-card {
+  text-align: center;
+
+  .btn {
+    margin-top: 0.8rem;
+  }
+}

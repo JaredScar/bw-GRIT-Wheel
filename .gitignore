@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.angular/
+
+# Test coverage
+coverage/
+
+# Environment files (contain real secrets: JWT_SECRET, SMTP credentials, DB
+# passwords, Slack webhook URLs, etc.) — never commit these. Only the
+# checked-in *.env.example templates should ever be tracked.
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Certificates / keys, just in case any ever land in the repo
+*.pem
+*.key
+*.p12
+*.pfx

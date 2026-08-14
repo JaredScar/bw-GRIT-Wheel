@@ -1,0 +1,21 @@
+.divider {
+  border: none;
+  border-top: 1px solid var(--bw-border);
+  margin: 1.5rem 0;
+}
+
+.success-card {
+  text-align: center;
+
+  h2 {
+    margin-top: 0;
+  }
+}
+
+.success-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+}

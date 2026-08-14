@@ -1,0 +1,11 @@
+<div class="page auth-verify-page">
+  @if (verifying()) {
+    <div class="empty-state">Signing you in...</div>
+  } @else {
+    <div class="card">
+      <h2>Unable to sign in</h2>
+      <p class="banner banner-error">{{ errorMessage() }}</p>
+      <a class="btn btn-primary" routerLink="/login">Back to sign in</a>
+    </div>
+  }
+</div>

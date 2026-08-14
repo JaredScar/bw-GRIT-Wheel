@@ -1,0 +1,57 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Rounds &amp; Winners</h1>
+    <p>Every all-hands GRIT round, its status, and the winner once the wheel has been spun.</p>
+  </div>
+
+  @if (loading()) {
+    <div class="empty-state">Loading rounds...</div>
+  } @else if (errorMessage()) {
+    <div class="banner banner-error">{{ errorMessage() }}</div>
+  } @else if (rounds().length === 0) {
+    <div class="empty-state">No rounds yet.</div>
+  } @else {
+    <div class="round-list">
+      @for (round of rounds(); track round.id) {
+        <div class="card round-card" [class.round-card--open]="round.status === RoundStatus.OPEN">
+          <div class="round-card__header">
+            <div>
+              <h3>{{ round.title }}</h3>
+              @if (round.eventDate) {
+                <span class="round-card__date">{{ round.eventDate | date: 'MMMM d, y' }}</span>
+              }
+            </div>
+            <span class="status-pill" [class]="'status-' + round.status.toLowerCase()">
+              {{ statusLabel(round.status) }}
+            </span>
+          </div>
+
+          @if (round.status === RoundStatus.COMPLETED && round.winnerNomineeName) {
+            <div class="winner-banner">
+              <a class="winner-banner__link" [routerLink]="['/people', round.winnerNomineeEmail]">
+                <app-avatar
+                  [email]="round.winnerNomineeEmail"
+                  [name]="round.winnerNomineeName"
+                  [size]="36"
+                ></app-avatar>
+                <span>🏆 Winner: <strong>{{ round.winnerNomineeName }}</strong></span>
+              </a>
+              <button
+                class="btn btn-secondary btn-small"
+                type="button"
+                [disabled]="sharingCard() === round.id"
+                (click)="shareCard(round)"
+              >
+                📸 {{ sharingCard() === round.id ? 'Preparing...' : 'Share' }}
+              </button>
+            </div>
+          }
+
+          <a class="btn btn-secondary" [routerLink]="['/nominations']" [queryParams]="{ roundId: round.id }">
+            View nominations for this round
+          </a>
+        </div>
+      }
+    </div>
+  }
+</div>

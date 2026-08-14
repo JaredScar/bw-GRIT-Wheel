@@ -1,0 +1,82 @@
+.leaderboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.1rem;
+}
+
+.leaderboard-panel {
+  h2 {
+    margin: 0 0 0.9rem;
+    font-size: 1.05rem;
+    color: var(--bw-navy);
+  }
+}
+
+.leaderboard-note {
+  margin: -0.6rem 0 0.8rem;
+  font-size: 0.78rem;
+  color: var(--bw-text-muted);
+}
+
+.leaderboard-empty {
+  color: var(--bw-text-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.leaderboard-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+}
+
+.champion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+}
+
+.rank {
+  font-weight: 700;
+  color: var(--bw-text-muted);
+  width: 1.4rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.leaderboard-name {
+  flex-grow: 1;
+  color: var(--bw-text);
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--bw-blue);
+    text-decoration: underline;
+  }
+}
+
+.leaderboard-value {
+  font-weight: 700;
+  color: var(--bw-navy);
+  flex-shrink: 0;
+}

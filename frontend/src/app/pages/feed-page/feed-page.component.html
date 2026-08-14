@@ -1,0 +1,108 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Public Nominations</h1>
+    <p>
+      Every GRIT nomination is shown here so the whole company can see what's being celebrated,
+      whether or not that person ends up winning.
+    </p>
+  </div>
+
+  @if (roundId()) {
+    <div class="banner banner-info">
+      Showing nominations for a specific round.
+      <button class="link-btn" type="button" (click)="clearRoundFilter()">Show all nominations</button>
+    </div>
+  }
+
+  <div class="search-bar">
+    <span class="search-bar__icon" aria-hidden="true">🔍</span>
+    <input
+      type="search"
+      class="search-bar__input"
+      placeholder="Search by nominee, nominator, or reason..."
+      [value]="searchTerm()"
+      (input)="setSearchTerm($any($event.target).value)"
+    />
+  </div>
+
+  <div class="filters">
+    <button
+      class="filter-chip"
+      [class.active]="selectedCategory() === 'ALL'"
+      type="button"
+      (click)="selectCategory('ALL')"
+    >
+      All
+    </button>
+    @for (category of gritCategories; track category) {
+      <button
+        class="filter-chip"
+        [class.active]="selectedCategory() === category"
+        type="button"
+        (click)="selectCategory(category)"
+      >
+        {{ categoryLabels[category] }}
+      </button>
+    }
+  </div>
+
+  <div class="sort-toggle">
+    <span class="sort-toggle__label">Sort by</span>
+    <button
+      class="sort-toggle__btn"
+      [class.active]="sort() === 'newest'"
+      type="button"
+      (click)="selectSort('newest')"
+    >
+      🆕 Newest
+    </button>
+    <button
+      class="sort-toggle__btn"
+      [class.active]="sort() === 'trending'"
+      type="button"
+      (click)="selectSort('trending')"
+    >
+      🔥 Trending
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="empty-state">Loading nominations...</div>
+  } @else if (errorMessage()) {
+    <div class="banner banner-error">{{ errorMessage() }}</div>
+  } @else if (filteredNominations().length === 0) {
+    <div class="empty-state">No nominations yet in this category. Be the first to nominate someone!</div>
+  } @else {
+    <div class="nomination-grid">
+      @for (nomination of filteredNominations(); track nomination.id) {
+        <article class="card nomination-card">
+          <div class="nomination-card__header">
+            <span class="badge" [class]="badgeClass(nomination.gritCategory)">
+              {{ categoryLabels[nomination.gritCategory] }}
+            </span>
+            <span class="nomination-card__date">{{ nomination.createdAt | date: 'MMM d, y' }}</span>
+          </div>
+          <a class="nomination-card__nominee" [routerLink]="['/people', nomination.nomineeEmail]">
+            <app-avatar [email]="nomination.nomineeEmail" [name]="nomination.nomineeName" [size]="48"></app-avatar>
+            <h3>{{ nomination.nomineeName }}</h3>
+          </a>
+          <p class="nomination-card__reason">{{ nomination.reason }}</p>
+          <div class="nomination-card__footer">
+            <p class="nomination-card__from">— {{ displayName(nomination) }}</p>
+            <button
+              class="upvote-btn"
+              type="button"
+              [class.active]="nomination.hasUpvoted"
+              [class.disabled]="!nomination.canUpvote"
+              [title]="nomination.canUpvote ? 'Agree with this nomination' : 'Only nominations from the current, open round can be agreed with'"
+              (click)="onUpvoteClick(nomination)"
+            >
+              <span class="upvote-btn__icon">👍</span>
+              <span class="upvote-btn__count">{{ nomination.upvoteCount }}</span>
+            </button>
+          </div>
+        </article>
+      }
+    </div>
+  }
+</div>

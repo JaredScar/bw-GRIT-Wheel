@@ -1,0 +1,100 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Nominate someone for the GRIT Award</h1>
+    <p>
+      Recognize a teammate who embodies Gratitude, Responsibility, Innovation, Trust, or Grit.
+      The winner is announced (and $100 in swag store credit awarded) at each all-hands meeting.
+      Only &#64;bitwarden.com email addresses can submit or be nominated.
+    </p>
+  </div>
+
+  @if (submitted()) {
+    <div class="card success-card">
+      <h2>🎉 Nomination submitted!</h2>
+      <p>Thanks for taking the time to recognize a teammate. Your nomination is now visible on the public nominations feed.</p>
+      <div class="success-actions">
+        <a class="btn btn-secondary" routerLink="/nominations">View all nominations</a>
+        <button class="btn btn-primary" type="button" (click)="submitAnother()">Submit another nomination</button>
+      </div>
+    </div>
+  } @else {
+    <form class="card" [formGroup]="form" (ngSubmit)="submit()">
+      @if (errorMessage()) {
+        <div class="banner banner-error">{{ errorMessage() }}</div>
+      }
+
+      <p class="hint">Nominating as <strong>{{ authService.currentUser()?.email }}</strong></p>
+
+      <div class="form-field">
+        <label for="nominatorName">Your name</label>
+        <input id="nominatorName" type="text" formControlName="nominatorName" placeholder="Jane Doe" />
+        @if (form.get('nominatorName')?.invalid && form.get('nominatorName')?.touched) {
+          <span class="error">Your name is required.</span>
+        }
+      </div>
+
+      <div class="checkbox-field">
+        <input id="isAnonymous" type="checkbox" formControlName="isAnonymous" />
+        <label for="isAnonymous">Submit this nomination anonymously (your name will be hidden from the public feed)</label>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="form-field">
+        <label for="nomineeName">First and last name of the person you're nominating</label>
+        <input id="nomineeName" type="text" formControlName="nomineeName" placeholder="Alex Rivera" />
+        @if (form.get('nomineeName')?.invalid && form.get('nomineeName')?.touched) {
+          <span class="error">The nominee's name is required.</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="nomineeEmail">Work email of the person you're nominating</label>
+        <input
+          id="nomineeEmail"
+          type="email"
+          formControlName="nomineeEmail"
+          placeholder="alex.rivera@bitwarden.com"
+          list="known-nominees"
+          (change)="onNomineeEmailChange($any($event.target).value)"
+        />
+        <datalist id="known-nominees">
+          @for (person of knownPeople(); track person.email) {
+            <option [value]="person.email">{{ person.name }}</option>
+          }
+        </datalist>
+        @if (form.get('nomineeEmail')?.invalid && form.get('nomineeEmail')?.touched) {
+          <span class="error">A valid &#64;bitwarden.com email is required.</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="gritCategory">Which GRIT value best fits this nomination?</label>
+        <select id="gritCategory" formControlName="gritCategory">
+          <option value="" disabled>Select a value</option>
+          @for (category of gritCategories; track category) {
+            <option [value]="category">{{ categoryLabels[category] }}</option>
+          }
+        </select>
+        @if (selectedCategoryDescription) {
+          <span class="hint">{{ selectedCategoryDescription }}</span>
+        }
+        @if (form.get('gritCategory')?.invalid && form.get('gritCategory')?.touched) {
+          <span class="error">Please select a GRIT value.</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="reason">Why are you nominating this person?</label>
+        <textarea id="reason" formControlName="reason" placeholder="Share the story of how they showed GRIT..."></textarea>
+        @if (form.get('reason')?.invalid && form.get('reason')?.touched) {
+          <span class="error">Please share at least a sentence or two (10+ characters).</span>
+        }
+      </div>
+
+      <button class="btn btn-primary" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Submitting...' : 'Submit nomination' }}
+      </button>
+    </form>
+  }
+</div>

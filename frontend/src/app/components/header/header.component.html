@@ -1,0 +1,28 @@
+<header class="app-header">
+  <div class="app-header__inner">
+    <a class="app-header__brand" routerLink="/nominate">
+      <img class="app-header__logo" src="brand/logo-horizontal-white.svg" alt="Bitwarden" />
+      <span class="app-header__divider" aria-hidden="true"></span>
+      <span class="app-header__title">GRIT Award</span>
+    </a>
+    @if (authService.currentUser(); as user) {
+      <nav class="app-header__nav">
+        <a routerLink="/nominate" routerLinkActive="active">Nominate</a>
+        <a routerLink="/nominations" routerLinkActive="active">Nominations</a>
+        <a routerLink="/rounds" routerLinkActive="active">Rounds &amp; Winners</a>
+        <a routerLink="/leaderboard" routerLinkActive="active">Leaderboard</a>
+        @if (authService.isAdmin()) {
+          <a routerLink="/admin" routerLinkActive="active">Admin</a>
+        }
+      </nav>
+      <div class="app-header__user">
+        <span class="app-header__email">{{ user.email }}</span>
+        <button class="app-header__logout" type="button" (click)="logout()">Log out</button>
+      </div>
+    } @else {
+      <nav class="app-header__nav">
+        <a routerLink="/login" routerLinkActive="active">Sign in</a>
+      </nav>
+    }
+  </div>
+</header>

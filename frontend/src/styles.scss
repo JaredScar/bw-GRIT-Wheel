@@ -1,0 +1,246 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bw-blue: #175ddc;
+  --bw-blue-dark: #124db8;
+  --bw-navy: #14181f;
+  --bw-bg: #f4f6fb;
+  --bw-surface: #ffffff;
+  --bw-border: #e2e6ef;
+  --bw-text: #1a1c21;
+  --bw-text-muted: #5b6270;
+  --bw-success: #0b826a;
+  --bw-danger: #b7280c;
+  --bw-gratitude: #e07a1f;
+  --bw-responsibility: #175ddc;
+  --bw-innovation: #6c4de6;
+  --bw-trust: #0b826a;
+  --bw-grit: #b7280c;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Segoe UI',
+    Roboto,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  background: var(--bw-bg);
+  color: var(--bw-text);
+}
+
+a {
+  color: var(--bw-blue);
+}
+
+button {
+  font-family: inherit;
+}
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.page-header {
+  margin-bottom: 1.75rem;
+
+  h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.85rem;
+    color: var(--bw-navy);
+  }
+
+  p {
+    margin: 0;
+    color: var(--bw-text-muted);
+    max-width: 640px;
+  }
+}
+
+.card {
+  background: var(--bw-surface);
+  border: 1px solid var(--bw-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(20, 24, 31, 0.05);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1.3rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease, opacity 0.15s ease;
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.btn-primary {
+  background: var(--bw-blue);
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: var(--bw-blue-dark);
+  }
+}
+
+.btn-secondary {
+  background: #fff;
+  color: var(--bw-blue);
+  border: 1px solid var(--bw-blue);
+
+  &:hover:not(:disabled) {
+    background: #eef3ff;
+  }
+}
+
+.btn-small {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.82rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.1rem;
+
+  label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--bw-navy);
+  }
+
+  .hint {
+    font-size: 0.8rem;
+    color: var(--bw-text-muted);
+  }
+
+  input,
+  select,
+  textarea {
+    border: 1px solid var(--bw-border);
+    border-radius: 8px;
+    padding: 0.65rem 0.8rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: #fff;
+    color: var(--bw-text);
+
+    &:focus {
+      outline: none;
+      border-color: var(--bw-blue);
+      box-shadow: 0 0 0 3px rgba(23, 93, 220, 0.15);
+    }
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 110px;
+  }
+
+  .error {
+    color: var(--bw-danger);
+    font-size: 0.8rem;
+  }
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+
+  input {
+    margin-top: 0.2rem;
+  }
+
+  label {
+    font-size: 0.9rem;
+    color: var(--bw-text);
+  }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-gratitude {
+  background: var(--bw-gratitude);
+}
+.badge-responsibility {
+  background: var(--bw-responsibility);
+}
+.badge-innovation {
+  background: var(--bw-innovation);
+}
+.badge-trust {
+  background: var(--bw-trust);
+}
+.badge-grit {
+  background: var(--bw-grit);
+}
+
+.banner {
+  border-radius: 10px;
+  padding: 0.9rem 1.1rem;
+  font-size: 0.92rem;
+  margin-bottom: 1.25rem;
+}
+
+.banner-success {
+  background: #e7f6f2;
+  color: var(--bw-success);
+  border: 1px solid #bfe8dd;
+}
+
+.banner-error {
+  background: #fbe9e5;
+  color: var(--bw-danger);
+  border: 1px solid #f2c6ba;
+}
+
+.banner-info {
+  background: #eaf1fd;
+  color: var(--bw-blue-dark);
+  border: 1px solid #cddffb;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--bw-text-muted);
+  padding: 3rem 1rem;
+}

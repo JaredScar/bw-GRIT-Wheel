@@ -1,0 +1,16 @@
+<div class="wheel-wrap">
+  <div class="pointer"></div>
+  <div
+    class="wheel"
+    [class.spinning]="spinning"
+    [style.background]="conicGradient()"
+    [style.transform]="'rotate(' + rotation + 'deg)'"
+  >
+    @for (segment of segments; track segment.label; let i = $index) {
+      <div class="segment-label" [style.transform]="labelTransform(i)">
+        <span>{{ segment.label }}</span>
+      </div>
+    }
+  </div>
+  <div class="hub">GRIT</div>
+</div>

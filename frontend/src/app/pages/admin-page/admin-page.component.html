@@ -1,0 +1,294 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Admin</h1>
+    <p>Create new GRIT rounds and spin the wheel to select the winner.</p>
+  </div>
+
+  @if (!authService.isAdmin()) {
+    <div class="card">
+      <h2>Admin access required</h2>
+      <p>
+        You're signed in as <strong>{{ authService.currentUser()?.email }}</strong>, but this
+        account isn't on the GRIT admin list. Ask an existing admin to add your email to
+        <code>ADMIN_EMAILS</code> if you should have access.
+      </p>
+    </div>
+  } @else {
+    @if (loadingRound()) {
+      <div class="empty-state">Loading current round...</div>
+    } @else if (currentRound()) {
+      <div class="card round-panel">
+        <div class="round-panel__header">
+          <div>
+            <h2>{{ currentRound()!.title }}</h2>
+            @if (currentRound()!.eventDate) {
+              <span class="hint">{{ currentRound()!.eventDate | date: 'MMMM d, y' }}</span>
+            }
+          </div>
+          <span class="status-pill" [class]="'status-' + currentRound()!.status.toLowerCase()">
+            {{ currentRound()!.status }}
+          </span>
+        </div>
+
+        @if (currentRound()!.status === RoundStatus.OPEN) {
+          <p class="hint">{{ wheelEntries().length }} unique nominee(s) eligible to spin for.</p>
+
+          <label class="weight-toggle">
+            <input
+              type="checkbox"
+              [checked]="weightedWheel()"
+              [disabled]="spinning()"
+              (change)="weightedWheel.set($any($event.target).checked)"
+            />
+            Weight slices by number of nominations (instead of equal weight per person)
+          </label>
+
+          <app-wheel [segments]="segments"></app-wheel>
+
+          @if (spinError()) {
+            <div class="banner banner-error">{{ spinError() }}</div>
+          }
+
+          <div class="spin-actions">
+            <button
+              class="btn btn-primary"
+              type="button"
+              (click)="spinWheel()"
+              [disabled]="spinning() || wheelEntries().length === 0"
+            >
+              {{ spinning() ? 'Spinning...' : 'Spin the wheel' }}
+            </button>
+          </div>
+
+          @if (winner()) {
+            <div class="winner-reveal">
+              <app-avatar [email]="winner()!.nomineeEmail" [name]="winner()!.nomineeName" [size]="40"></app-avatar>
+              <span>🏆 Winner: <strong>{{ winner()!.nomineeName }}</strong></span>
+              <button
+                class="btn btn-secondary btn-small"
+                type="button"
+                [disabled]="sharingCard()"
+                (click)="shareWinnerCard(winner()!.nomineeName, winner()!.nomineeEmail)"
+              >
+                📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
+              </button>
+            </div>
+            @if (cardError()) {
+              <div class="banner banner-error">{{ cardError() }}</div>
+            }
+          }
+        } @else if (currentRound()!.winnerNomineeName) {
+          <div class="winner-reveal">
+            <app-avatar
+              [email]="currentRound()!.winnerNomineeEmail"
+              [name]="currentRound()!.winnerNomineeName"
+              [size]="40"
+            ></app-avatar>
+            <span>🏆 Winner: <strong>{{ currentRound()!.winnerNomineeName }}</strong></span>
+            @if (currentRound()!.wheelMode === WheelMode.WEIGHTED) {
+              <span class="hint">(weighted wheel)</span>
+            }
+            <button
+              class="btn btn-secondary btn-small"
+              type="button"
+              [disabled]="sharingCard()"
+              (click)="shareWinnerCard(currentRound()!.winnerNomineeName!, currentRound()!.winnerNomineeEmail!)"
+            >
+              📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
+            </button>
+          </div>
+          @if (cardError()) {
+            <div class="banner banner-error">{{ cardError() }}</div>
+          }
+        }
+
+        <a class="btn btn-secondary" [routerLink]="['/nominations']" [queryParams]="{ roundId: currentRound()!.id }">
+          View this round's nominations
+        </a>
+      </div>
+    }
+
+    <div class="card new-round-card">
+      <h2>Start a new round</h2>
+      <p class="hint">
+        Creating a new round closes the current one (if still open) and starts a fresh round for
+        upcoming nominations.
+      </p>
+      <form [formGroup]="newRoundForm" (ngSubmit)="createRound()">
+        @if (createRoundError()) {
+          <div class="banner banner-error">{{ createRoundError() }}</div>
+        }
+        <div class="form-field">
+          <label for="title">Round title</label>
+          <input id="title" type="text" formControlName="title" placeholder="September 2026 All-Hands" />
+        </div>
+        <div class="form-field">
+          <label for="eventDate">Event date (optional)</label>
+          <input id="eventDate" type="date" formControlName="eventDate" />
+        </div>
+        <button class="btn btn-primary" type="submit" [disabled]="creatingRound()">
+          {{ creatingRound() ? 'Creating...' : 'Create new round' }}
+        </button>
+      </form>
+    </div>
+
+    <div class="card rounds-history">
+      <h2>All rounds</h2>
+      @if (allRounds().length === 0) {
+        <p class="hint">No rounds yet.</p>
+      } @else {
+        <ul>
+          @for (round of allRounds(); track round.id) {
+            <li>
+              <span class="round-title">{{ round.title }}</span>
+              <span class="status-pill" [class]="'status-' + round.status.toLowerCase()">{{ round.status }}</span>
+              @if (round.winnerNomineeName) {
+                <span class="round-winner">Winner: {{ round.winnerNomineeName }}</span>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <div class="card analytics-card">
+      <h2>📊 Analytics</h2>
+      @if (loadingAnalytics()) {
+        <p class="hint">Loading analytics...</p>
+      } @else {
+      @if (analytics(); as stats) {
+        <div class="analytics-stat-row">
+          <div class="stat-mini">
+            <span class="stat-mini__value">{{ stats.totalNominations }}</span>
+            <span class="stat-mini__label">Nominations</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-mini__value">{{ stats.totalRounds }}</span>
+            <span class="stat-mini__label">Rounds</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-mini__value">{{ stats.totalUpvotes }}</span>
+            <span class="stat-mini__label">👍 Agrees</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-mini__value">{{ stats.uniqueNominees }}</span>
+            <span class="stat-mini__label">Unique nominees</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-mini__value">{{ stats.uniqueNominators }}</span>
+            <span class="stat-mini__label">Unique nominators</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-mini__value">{{ stats.averageNominationsPerRound }}</span>
+            <span class="stat-mini__label">Avg / round</span>
+          </div>
+        </div>
+
+        @if (stats.nominationsByCategory.length > 0) {
+          <h3 class="chart-title">Nominations by category</h3>
+          <div class="bar-chart">
+            @for (row of stats.nominationsByCategory; track row.category) {
+              <div class="bar-row">
+                <span class="bar-row__label">{{ categoryLabels[row.category] }}</span>
+                <div class="bar-row__track">
+                  <div
+                    class="bar-row__fill"
+                    [class]="categoryBadgeClass(row.category)"
+                    [style.width.%]="barWidth(row.count, stats.nominationsByCategory)"
+                  ></div>
+                </div>
+                <span class="bar-row__count">{{ row.count }}</span>
+              </div>
+            }
+          </div>
+        }
+
+        @if (stats.nominationsByRound.length > 0) {
+          <h3 class="chart-title">Nominations by round</h3>
+          <div class="bar-chart">
+            @for (row of stats.nominationsByRound; track row.roundId) {
+              <div class="bar-row">
+                <span class="bar-row__label">{{ row.roundTitle }}</span>
+                <div class="bar-row__track">
+                  <div
+                    class="bar-row__fill bar-row__fill--round"
+                    [style.width.%]="barWidth(row.count, stats.nominationsByRound)"
+                  ></div>
+                </div>
+                <span class="bar-row__count">{{ row.count }}</span>
+              </div>
+            }
+          </div>
+        }
+      }
+      }
+    </div>
+
+    <div class="card photo-directory">
+      <h2>Photo directory</h2>
+      <p class="hint">
+        Upload a headshot for anyone by their &#64;bitwarden.com email. Once uploaded, their photo
+        automatically shows up next to their nominations and any round they've won.
+      </p>
+
+      @if (photoError()) {
+        <div class="banner banner-error">{{ photoError() }}</div>
+      }
+
+      <form class="photo-upload-form" [formGroup]="photoForm" (ngSubmit)="uploadPhotoFromForm()">
+        <div class="form-field">
+          <label for="photoEmail">Email</label>
+          <input id="photoEmail" type="email" formControlName="email" placeholder="person@bitwarden.com" />
+        </div>
+        <div class="form-field">
+          <label for="photoFile">Photo</label>
+          <input id="photoFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" (change)="onFileSelected($event)" />
+        </div>
+        <button class="btn btn-primary" type="submit" [disabled]="uploadingEmail() !== null">
+          {{ uploadingEmail() ? 'Uploading...' : 'Upload photo' }}
+        </button>
+      </form>
+
+      <hr class="divider" />
+
+      @if (loadingDirectory()) {
+        <p class="hint">Loading directory...</p>
+      } @else if (directory().length === 0) {
+        <p class="hint">No nominees yet — once nominations come in, they'll show up here.</p>
+      } @else {
+        <ul class="directory-list">
+          @for (entry of directory(); track entry.email) {
+            <li class="directory-row">
+              <app-avatar [email]="entry.email" [name]="entry.name" [size]="44"></app-avatar>
+              <div class="directory-row__info">
+                <span class="directory-row__name">{{ entry.name }}</span>
+                <span class="directory-row__email">{{ entry.email }}</span>
+              </div>
+              <div class="directory-row__actions">
+                <label class="btn btn-secondary file-btn">
+                  {{ entry.hasPhoto ? 'Replace' : 'Add photo' }}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    (change)="uploadPhotoForEntry(entry, $event)"
+                    [disabled]="uploadingEmail() === entry.email"
+                  />
+                </label>
+                @if (entry.hasPhoto) {
+                  <button
+                    class="btn btn-secondary btn-danger"
+                    type="button"
+                    (click)="deletePhoto(entry)"
+                    [disabled]="uploadingEmail() === entry.email"
+                  >
+                    Remove
+                  </button>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</div>

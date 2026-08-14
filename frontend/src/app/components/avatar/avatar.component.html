@@ -1,0 +1,14 @@
+@if (photoUrl && !imgFailed) {
+  <img
+    class="avatar"
+    [style.width.px]="size"
+    [style.height.px]="size"
+    [src]="photoUrl"
+    [alt]="name || email || 'Photo'"
+    (error)="onError()"
+  />
+} @else {
+  <div class="avatar avatar--initials" [style.width.px]="size" [style.height.px]="size" [style.fontSize.px]="size * 0.4">
+    {{ initials }}
+  </div>
+}

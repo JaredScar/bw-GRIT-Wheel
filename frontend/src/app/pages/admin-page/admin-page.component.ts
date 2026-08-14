@@ -1,0 +1,285 @@
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { AvatarComponent } from '../../components/avatar/avatar.component';
+import { WheelComponent, WheelSegment } from '../../components/wheel/wheel.component';
+import { AnalyticsSummary } from '../../models/analytics.model';
+import { GRIT_CATEGORY_LABELS, GritCategory } from '../../models/grit-category';
+import { DirectoryEntry } from '../../models/photo.model';
+import { Round, RoundStatus, WheelEntry, WheelMode } from '../../models/round.model';
+import { AnalyticsService } from '../../services/analytics.service';
+import { AuthService } from '../../services/auth.service';
+import { CelebrationService } from '../../services/celebration.service';
+import { PhotoService } from '../../services/photo.service';
+import { RoundService } from '../../services/round.service';
+import { WinnerCardService } from '../../services/winner-card.service';
+
+@Component({
+  selector: 'app-admin-page',
+  standalone: true,
+  imports: [ReactiveFormsModule, DatePipe, RouterLink, WheelComponent, AvatarComponent],
+  templateUrl: './admin-page.component.html',
+  styleUrl: './admin-page.component.scss',
+})
+export class AdminPageComponent implements OnInit {
+  @ViewChild(WheelComponent) wheel?: WheelComponent;
+
+  readonly RoundStatus = RoundStatus;
+  readonly WheelMode = WheelMode;
+
+  private readonly fb = inject(FormBuilder);
+  readonly authService = inject(AuthService);
+  private readonly roundService = inject(RoundService);
+  private readonly photoService = inject(PhotoService);
+  private readonly celebrationService = inject(CelebrationService);
+  private readonly winnerCardService = inject(WinnerCardService);
+  private readonly analyticsService = inject(AnalyticsService);
+
+  readonly categoryLabels = GRIT_CATEGORY_LABELS;
+
+  readonly photoForm = this.fb.group({
+    email: ['', [Validators.required]],
+  });
+  readonly selectedFile = signal<File | null>(null);
+  readonly directory = signal<DirectoryEntry[]>([]);
+  readonly loadingDirectory = signal(false);
+  readonly uploadingEmail = signal<string | null>(null);
+  readonly photoError = signal<string | null>(null);
+
+  readonly newRoundForm = this.fb.group({
+    title: ['', [Validators.required, Validators.maxLength(160)]],
+    eventDate: [''],
+  });
+
+  readonly currentRound = signal<Round | null>(null);
+  readonly wheelEntries = signal<WheelEntry[]>([]);
+  readonly loadingRound = signal(true);
+  readonly creatingRound = signal(false);
+  readonly createRoundError = signal<string | null>(null);
+  readonly spinning = signal(false);
+  readonly spinError = signal<string | null>(null);
+  readonly winner = signal<WheelEntry | null>(null);
+  readonly winningReasons = signal<string[]>([]);
+  readonly allRounds = signal<Round[]>([]);
+  readonly weightedWheel = signal(false);
+  readonly sharingCard = signal(false);
+  readonly cardError = signal<string | null>(null);
+
+  readonly analytics = signal<AnalyticsSummary | null>(null);
+  readonly loadingAnalytics = signal(false);
+
+  get segments(): WheelSegment[] {
+    return this.wheelEntries().map((e) => ({
+      label: e.nomineeName,
+      weight: this.weightedWheel() ? e.nominationIds.length : 1,
+    }));
+  }
+
+  async ngOnInit(): Promise<void> {
+    await this.authService.ready;
+    if (this.authService.isAdmin()) {
+      this.loadEverything();
+      this.loadDirectory();
+      this.loadAnalytics();
+    }
+  }
+
+  loadEverything(): void {
+    this.loadingRound.set(true);
+    this.roundService.getCurrent().subscribe({
+      next: (round) => {
+        this.currentRound.set(round);
+        this.winner.set(null);
+        this.loadWheelEntries(round.id);
+      },
+      error: () => this.loadingRound.set(false),
+    });
+    this.roundService.findAll().subscribe((rounds) => this.allRounds.set(rounds));
+  }
+
+  loadWheelEntries(roundId: string): void {
+    this.roundService.getWheelEntries(roundId).subscribe({
+      next: (entries) => {
+        this.wheelEntries.set(entries);
+        this.loadingRound.set(false);
+      },
+      error: () => this.loadingRound.set(false),
+    });
+  }
+
+  createRound(): void {
+    this.createRoundError.set(null);
+    if (this.newRoundForm.invalid) {
+      this.newRoundForm.markAllAsTouched();
+      return;
+    }
+    this.creatingRound.set(true);
+    const value = this.newRoundForm.getRawValue();
+    this.roundService
+      .createRound({
+        title: value.title!.trim(),
+        eventDate: value.eventDate || undefined,
+      })
+      .subscribe({
+        next: (round) => {
+          this.creatingRound.set(false);
+          this.newRoundForm.reset();
+          this.currentRound.set(round);
+          this.winner.set(null);
+          this.wheelEntries.set([]);
+          this.wheel?.reset();
+          this.loadEverything();
+          this.loadAnalytics();
+        },
+        error: (err: HttpErrorResponse) => {
+          this.creatingRound.set(false);
+          this.createRoundError.set(err.error?.message ?? 'Unable to create round.');
+        },
+      });
+  }
+
+  spinWheel(): void {
+    const round = this.currentRound();
+    if (!round || this.spinning()) return;
+
+    this.spinError.set(null);
+    this.spinning.set(true);
+
+    this.roundService.spin(round.id, this.weightedWheel()).subscribe({
+      next: (result) => {
+        this.wheelEntries.set(result.entries);
+        const index = result.entries.findIndex(
+          (e) => e.nomineeEmail === result.winner.nomineeEmail,
+        );
+
+        setTimeout(() => {
+          this.wheel?.spinTo(index < 0 ? 0 : index);
+        }, 50);
+
+        const finishSub = this.wheel?.spinFinished.subscribe(() => {
+          this.currentRound.set(result.round);
+          this.winner.set(result.winner);
+          this.spinning.set(false);
+          this.celebrationService.celebrate();
+          this.loadEverything();
+          finishSub?.unsubscribe();
+        });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.spinning.set(false);
+        this.spinError.set(err.error?.message ?? 'Unable to spin the wheel.');
+      },
+    });
+  }
+
+  async shareWinnerCard(name: string, email: string): Promise<void> {
+    const round = this.currentRound();
+    if (!round) return;
+
+    this.cardError.set(null);
+    this.sharingCard.set(true);
+    try {
+      await this.winnerCardService.shareOrDownload({ name, email, roundTitle: round.title });
+    } catch {
+      this.cardError.set('Unable to generate the winner card.');
+    } finally {
+      this.sharingCard.set(false);
+    }
+  }
+
+  loadAnalytics(): void {
+    this.loadingAnalytics.set(true);
+    this.analyticsService.getSummary().subscribe({
+      next: (summary) => {
+        this.analytics.set(summary);
+        this.loadingAnalytics.set(false);
+      },
+      error: () => this.loadingAnalytics.set(false),
+    });
+  }
+
+  barWidth(count: number, rows: { count: number }[]): number {
+    const max = Math.max(...rows.map((r) => r.count), 1);
+    return (count / max) * 100;
+  }
+
+  categoryBadgeClass(category: GritCategory): string {
+    return `badge-${category.toLowerCase()}`;
+  }
+
+  loadDirectory(): void {
+    this.loadingDirectory.set(true);
+    this.photoService.getDirectory().subscribe({
+      next: (entries) => {
+        this.directory.set(entries);
+        this.loadingDirectory.set(false);
+      },
+      error: () => this.loadingDirectory.set(false),
+    });
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.selectedFile.set(input.files?.[0] ?? null);
+  }
+
+  uploadPhotoFromForm(): void {
+    this.photoError.set(null);
+    const email = this.photoForm.value.email?.trim();
+    const file = this.selectedFile();
+    if (!email) {
+      this.photoError.set('An email is required.');
+      return;
+    }
+    if (!file) {
+      this.photoError.set('Please choose an image file.');
+      return;
+    }
+    this.uploadPhoto(email, file, () => {
+      this.photoForm.reset();
+      this.selectedFile.set(null);
+    });
+  }
+
+  uploadPhotoForEntry(entry: DirectoryEntry, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.uploadPhoto(entry.email, file, () => {
+      input.value = '';
+    });
+  }
+
+  private uploadPhoto(email: string, file: File, onSuccess: () => void): void {
+    this.photoError.set(null);
+    this.uploadingEmail.set(email.toLowerCase());
+    this.photoService.upload(email, file).subscribe({
+      next: () => {
+        this.uploadingEmail.set(null);
+        onSuccess();
+        this.loadDirectory();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.uploadingEmail.set(null);
+        this.photoError.set(err.error?.message ?? 'Unable to upload photo.');
+      },
+    });
+  }
+
+  deletePhoto(entry: DirectoryEntry): void {
+    this.photoError.set(null);
+    this.uploadingEmail.set(entry.email.toLowerCase());
+    this.photoService.remove(entry.email).subscribe({
+      next: () => {
+        this.uploadingEmail.set(null);
+        this.loadDirectory();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.uploadingEmail.set(null);
+        this.photoError.set(err.error?.message ?? 'Unable to delete photo.');
+      },
+    });
+  }
+}

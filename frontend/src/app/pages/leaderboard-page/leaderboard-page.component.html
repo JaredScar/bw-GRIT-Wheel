@@ -1,0 +1,91 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Leaderboard</h1>
+    <p>A fun, all-time look at who's been celebrated the most for living the GRIT values.</p>
+  </div>
+
+  @if (loading()) {
+    <div class="empty-state">Loading leaderboard...</div>
+  } @else if (errorMessage()) {
+    <div class="banner banner-error">{{ errorMessage() }}</div>
+  } @else {
+    @if (leaderboard(); as board) {
+    <div class="leaderboard-grid">
+      <div class="card leaderboard-panel">
+        <h2>🏅 Most nominated</h2>
+        @if (board.topNominated.length === 0) {
+          <p class="leaderboard-empty">No nominations yet.</p>
+        } @else {
+          <ol class="leaderboard-list">
+            @for (entry of board.topNominated; track entry.email; let i = $index) {
+              <li>
+                <span class="rank">{{ i + 1 }}</span>
+                <app-avatar [email]="entry.email" [name]="entry.name" [size]="32"></app-avatar>
+                <a class="leaderboard-name" [routerLink]="['/people', entry.email]">{{ entry.name }}</a>
+                <span class="leaderboard-value">{{ entry.value }}</span>
+              </li>
+            }
+          </ol>
+        }
+      </div>
+
+      <div class="card leaderboard-panel">
+        <h2>👍 Crowd favorites</h2>
+        @if (board.topAgreed.length === 0) {
+          <p class="leaderboard-empty">No one's been agreed with yet — go react to a nomination!</p>
+        } @else {
+          <ol class="leaderboard-list">
+            @for (entry of board.topAgreed; track entry.email; let i = $index) {
+              <li>
+                <span class="rank">{{ i + 1 }}</span>
+                <app-avatar [email]="entry.email" [name]="entry.name" [size]="32"></app-avatar>
+                <a class="leaderboard-name" [routerLink]="['/people', entry.email]">{{ entry.name }}</a>
+                <span class="leaderboard-value">{{ entry.value }}</span>
+              </li>
+            }
+          </ol>
+        }
+      </div>
+
+      <div class="card leaderboard-panel">
+        <h2>✍️ Top nominators</h2>
+        <p class="leaderboard-note">Only counts nominations submitted non-anonymously.</p>
+        @if (board.topNominators.length === 0) {
+          <p class="leaderboard-empty">No public nominators yet.</p>
+        } @else {
+          <ol class="leaderboard-list">
+            @for (entry of board.topNominators; track entry.email; let i = $index) {
+              <li>
+                <span class="rank">{{ i + 1 }}</span>
+                <app-avatar [email]="entry.email" [name]="entry.name" [size]="32"></app-avatar>
+                <span class="leaderboard-name">{{ entry.name }}</span>
+                <span class="leaderboard-value">{{ entry.value }}</span>
+              </li>
+            }
+          </ol>
+        }
+      </div>
+
+      <div class="card leaderboard-panel">
+        <h2>🏆 Category champions</h2>
+        @if (board.categoryChampions.length === 0) {
+          <p class="leaderboard-empty">No nominations yet.</p>
+        } @else {
+          <ul class="champion-list">
+            @for (champion of board.categoryChampions; track champion.category) {
+              <li>
+                <span class="badge" [class]="badgeClass(champion.category)">
+                  {{ categoryLabels[champion.category] }}
+                </span>
+                <app-avatar [email]="champion.email" [name]="champion.name" [size]="28"></app-avatar>
+                <a class="leaderboard-name" [routerLink]="['/people', champion.email]">{{ champion.name }}</a>
+                <span class="leaderboard-value">{{ champion.count }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </div>
+    }
+  }
+</div>

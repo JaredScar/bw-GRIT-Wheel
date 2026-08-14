@@ -1,0 +1,37 @@
+<div class="page login-page">
+  <div class="page-header">
+    <h1>Sign in to GRIT Award</h1>
+    <p>Enter your &#64;bitwarden.com email and we'll send you a one-click sign-in link.</p>
+  </div>
+
+  @if (linkSent()) {
+    <div class="card success-card">
+      <h2>📬 Check your email</h2>
+      <p>
+        If <strong>{{ form.value.email }}</strong> is a valid &#64;bitwarden.com address, a
+        sign-in link is on its way. It expires in 15 minutes and can only be used once.
+      </p>
+      <button class="btn btn-secondary" type="button" (click)="sendAnother()">
+        Use a different email
+      </button>
+    </div>
+  } @else {
+    <form class="card login-card" [formGroup]="form" (ngSubmit)="submit()">
+      @if (errorMessage()) {
+        <div class="banner banner-error">{{ errorMessage() }}</div>
+      }
+
+      <div class="form-field">
+        <label for="email">Work email</label>
+        <input id="email" type="email" formControlName="email" placeholder="jane.doe@bitwarden.com" autocomplete="email" />
+        @if (form.get('email')?.invalid && form.get('email')?.touched) {
+          <span class="error">A valid &#64;bitwarden.com email is required.</span>
+        }
+      </div>
+
+      <button class="btn btn-primary" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Sending...' : 'Send sign-in link' }}
+      </button>
+    </form>
+  }
+</div>

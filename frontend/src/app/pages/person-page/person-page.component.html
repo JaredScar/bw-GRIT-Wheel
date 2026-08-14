@@ -1,0 +1,81 @@
+<div class="page">
+  @if (loading()) {
+    <div class="empty-state">Loading profile...</div>
+  } @else if (errorMessage()) {
+    <div class="banner banner-error">{{ errorMessage() }}</div>
+  } @else {
+    @if (profile(); as person) {
+      <div class="page-header person-header">
+        <app-avatar [email]="person.email" [name]="person.name" [size]="72"></app-avatar>
+        <div>
+          <h1>{{ person.name }}</h1>
+          <p class="person-header__email">{{ person.email }}</p>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="card stat-card">
+          <span class="stat-card__value">{{ person.totalNominations }}</span>
+          <span class="stat-card__label">Nominations received</span>
+        </div>
+        <div class="card stat-card">
+          <span class="stat-card__value">{{ person.totalUpvotes }}</span>
+          <span class="stat-card__label">👍 Agrees</span>
+        </div>
+        <div class="card stat-card">
+          <span class="stat-card__value">{{ person.wins.length }}</span>
+          <span class="stat-card__label">🏆 Rounds won</span>
+        </div>
+      </div>
+
+      @if (person.categoryBreakdown.length > 0) {
+        <div class="category-breakdown">
+          @for (entry of person.categoryBreakdown; track entry.category) {
+            <span class="badge" [class]="badgeClass(entry.category)">
+              {{ categoryLabels[entry.category] }} · {{ entry.count }}
+            </span>
+          }
+        </div>
+      }
+
+      @if (person.wins.length > 0) {
+        <div class="banner banner-success wins-banner">
+          @for (win of person.wins; track win.roundId) {
+            <div>
+              🏆 Won <strong>{{ win.roundTitle }}</strong>
+              @if (win.spunAt) {
+                <span class="wins-banner__date">({{ win.spunAt | date: 'MMM d, y' }})</span>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <h2 class="section-title">Nominations for {{ person.name }}</h2>
+
+      @if (person.nominations.length === 0) {
+        <div class="empty-state">No nominations yet.</div>
+      } @else {
+        <div class="nomination-grid">
+          @for (nomination of person.nominations; track nomination.id) {
+            <article class="card nomination-card">
+              <div class="nomination-card__header">
+                <span class="badge" [class]="badgeClass(nomination.gritCategory)">
+                  {{ categoryLabels[nomination.gritCategory] }}
+                </span>
+                <span class="nomination-card__date">{{ nomination.createdAt | date: 'MMM d, y' }}</span>
+              </div>
+              <p class="nomination-card__reason">{{ nomination.reason }}</p>
+              <div class="nomination-card__footer">
+                <p class="nomination-card__from">— {{ displayName(nomination.nominatorName) }}</p>
+                <span class="upvote-pill">👍 {{ nomination.upvoteCount }}</span>
+              </div>
+            </article>
+          }
+        </div>
+      }
+
+      <a class="btn btn-secondary back-link" [routerLink]="['/nominations']">← Back to all nominations</a>
+    }
+  }
+</div>

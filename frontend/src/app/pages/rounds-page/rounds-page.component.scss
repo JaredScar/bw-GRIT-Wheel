@@ -1,0 +1,88 @@
+.round-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.round-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  border-left: 4px solid var(--bw-border);
+
+  &--open {
+    border-left-color: var(--bw-blue);
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+
+    h3 {
+      margin: 0 0 0.2rem;
+      color: var(--bw-navy);
+    }
+  }
+
+  &__date {
+    font-size: 0.85rem;
+    color: var(--bw-text-muted);
+  }
+
+  .btn {
+    align-self: flex-start;
+  }
+}
+
+.status-pill {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.status-open {
+  background: #eaf1fd;
+  color: var(--bw-blue-dark);
+}
+
+.status-completed {
+  background: #e7f6f2;
+  color: var(--bw-success);
+}
+
+.status-closed {
+  background: #f1f2f5;
+  color: var(--bw-text-muted);
+}
+
+.winner-banner {
+  background: #fff8e6;
+  border: 1px solid #f4dfa0;
+  color: #8a6300;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+
+  &__link {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: inherit;
+    text-decoration: none;
+    flex-grow: 1;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}

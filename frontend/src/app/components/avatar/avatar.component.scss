@@ -1,0 +1,21 @@
+:host {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.avatar {
+  border-radius: 50%;
+  display: block;
+  object-fit: cover;
+  background: var(--bw-border);
+
+  &--initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bw-blue);
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+}
