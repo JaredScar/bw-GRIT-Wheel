@@ -30,11 +30,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your .env file}
       ADMIN_EMAILS: ${ADMIN_EMAILS:?Set ADMIN_EMAILS in your .env file}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM: ${SMTP_FROM:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in your .env file}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?Set GOOGLE_CLIENT_SECRET in your .env file}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
     depends_on:
       db:

@@ -2,5 +2,5 @@ import { SetMetadata } from '@nestjs/common';
 
 export const IS_PUBLIC_KEY = 'isPublic';
 
-/** Marks a route as exempt from the global JwtAuthGuard (e.g. the magic-link endpoints themselves). */
+/** Marks a route as exempt from the global JwtAuthGuard (e.g. the Google sign-in endpoints themselves). */
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);

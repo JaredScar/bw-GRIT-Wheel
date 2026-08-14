@@ -9,13 +9,6 @@ export const routes: Routes = [
       import('./pages/login-page/login-page.component').then((m) => m.LoginPageComponent),
   },
   {
-    path: 'auth/verify',
-    loadComponent: () =>
-      import('./pages/auth-verify-page/auth-verify-page.component').then(
-        (m) => m.AuthVerifyPageComponent,
-      ),
-  },
-  {
     path: 'nominate',
     canActivate: [authGuard],
     loadComponent: () =>

@@ -5,13 +5,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../users/user.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { GoogleOAuthService } from './google-oauth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { MagicLinkToken } from './magic-link-token.entity';
-import { MailerService } from './mailer.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, MagicLinkToken]),
+    TypeOrmModule.forFeature([User]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -21,7 +20,7 @@ import { MailerService } from './mailer.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, MailerService, JwtAuthGuard],
+  providers: [AuthService, GoogleOAuthService, JwtAuthGuard],
   exports: [AuthService, JwtAuthGuard, JwtModule],
 })
 export class AuthModule {}

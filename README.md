@@ -24,11 +24,12 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
 
 ## How it works
 
-- **Sign in with a magic link**: the entire site requires signing in first. Enter your
-  `@bitwarden.com` email on `/login`, and a one-click sign-in link is emailed to you
-  (or logged to the backend console if SMTP isn't configured yet — see below). The
-  link is single-use and expires after 15 minutes; once verified you get a 30-day
-  session, so you won't need to sign in again on the same device for a while.
+- **Sign in with Google**: the entire site requires signing in first. Click **Continue
+  with Google** on `/login` and pick your Bitwarden work account. Only verified
+  `@bitwarden.com` Google accounts are accepted — a personal Gmail (or any other
+  Workspace domain) is turned away and no account is created for it. Once you're
+  through, you get a 30-day session, so you won't need to sign in again on the same
+  device for a while.
 - **Anyone signed in** can submit a nomination for someone else (the nominee also
   needs a `@bitwarden.com` email). The nominator can choose to submit anonymously —
   their name is hidden from the public view (their verified identity is still
@@ -77,10 +78,35 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
 ## Project layout
 
 ```
-backend/    NestJS API (auth/magic-link, nominations, rounds, admin)
+backend/    NestJS API (Google OAuth sign-in, nominations, rounds, admin)
 frontend/   Angular app (login, nominate form, public feed, rounds/winners, admin + wheel)
 docker-compose.yml
 ```
+
+## Setting up Google sign-in
+
+Signing in with Google is the only way into the app, so you need an OAuth client
+before it will start. In the [Google Cloud console](https://console.cloud.google.com/):
+
+1. Pick (or create) a project, then go to **APIs & Services → OAuth consent screen**
+   and configure it with a **User type of Internal**. Internal means only accounts in
+   the Bitwarden Google Workspace can ever complete the flow, which is a second layer
+   of protection on top of the domain check the app does itself.
+2. Go to **APIs & Services → Credentials → Create credentials → OAuth client ID** and
+   choose **Web application**.
+3. Under **Authorized redirect URIs**, add the callback URL. For local development
+   that's:
+
+   ```
+   http://localhost:4200/api/auth/google/callback
+   ```
+
+   Note the port is **4200** (the frontend), not 3000 — `/api/*` is proxied through to
+   the backend both by nginx in Docker and by the Angular dev server. Add your
+   production URL here too when you deploy (e.g.
+   `https://grit.example.com/api/auth/google/callback`).
+4. Copy the generated **Client ID** and **Client secret** into `.env` as described
+   below.
 
 ## Running with Docker (recommended)
 
@@ -91,18 +117,19 @@ docker-compose.yml
    ```
 
    Edit `.env` and set:
+   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — the OAuth client you created above.
+     Both are required; the backend refuses to sign anyone in without them.
+   - `GOOGLE_REDIRECT_URI` — must exactly match one of the **Authorized redirect URIs**
+     on that OAuth client. Leave it blank to fall back to
+     `<FRONTEND_URL>/api/auth/google/callback`.
    - `JWT_SECRET` — a long random secret used to sign session cookies. Generate one
      with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
    - `ADMIN_EMAILS` — a comma-separated list of `@bitwarden.com` emails that should
      have admin access (create rounds, spin the wheel, manage photos, view
      analytics). Anyone else can still sign in and use the rest of the site, just not
      `/admin`.
-   - `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` — an SMTP
-     relay used to send magic-link sign-in emails (e.g. a Google Workspace SMTP relay,
-     or a transactional email provider). **If left blank, magic links aren't emailed —
-     they're logged to the backend console instead** (`docker compose logs backend`),
-     which is convenient for local testing but you'll want real SMTP configured before
-     rolling this out to the team.
+   - `FRONTEND_URL` — the public URL of the app; people are sent back here after
+     signing in with Google.
    - `COOKIE_SECURE` — set to `true` only if the site is served over HTTPS.
 
    Optionally, set `SLACK_WEBHOOK_URL` to a Slack
@@ -120,16 +147,8 @@ docker-compose.yml
    - Frontend: http://localhost:4200
    - Backend API (optional direct access): http://localhost:3000/api
 
-   You'll land on `/login`. Enter your `@bitwarden.com` email and submit. If you
-   haven't configured SMTP, grab the sign-in link from the backend logs instead of
-   your inbox:
-
-   ```bash
-   docker compose logs -f backend
-   ```
-
-   Look for a line like `Magic link for you@bitwarden.com: http://localhost:4200/auth/verify?token=...`
-   and open that URL in your browser to finish signing in.
+   You'll land on `/login`. Click **Continue with Google** and choose your
+   `@bitwarden.com` account to finish signing in.
 
 The frontend container proxies `/api/*` requests to the backend container, so the
 Angular app always talks to the API on the same origin it's served from.
@@ -160,7 +179,7 @@ repo (or your fork of it) is public.
 
 ```bash
 cd backend
-cp .env.example .env   # point DB_HOST at your local Postgres, set JWT_SECRET/ADMIN_EMAILS
+cp .env.example .env   # point DB_HOST at your local Postgres, set GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/JWT_SECRET/ADMIN_EMAILS
 npm install
 npm run start:dev
 ```
@@ -180,10 +199,9 @@ Then visit http://localhost:4200.
 
 ## Using the app
 
-- **Sign in**: `/login` — enter your `@bitwarden.com` email and click the link sent to
-  your inbox (or logged to the backend console, if SMTP isn't set up). You'll stay
-  signed in for 30 days on that device; use **Log out** in the header to end your
-  session early.
+- **Sign in**: `/login` — click **Continue with Google** and pick your
+  `@bitwarden.com` account. You'll stay signed in for 30 days on that device; use
+  **Log out** in the header to end your session early.
 - **Nominate**: once signed in, go to `/nominate`, fill out the form, and submit. The
   nominee's email must end in `@bitwarden.com`; your own identity comes from your
   session automatically.
@@ -212,10 +230,20 @@ Then visit http://localhost:4200.
 
 ## Notes & assumptions
 
-- Access is gated by a magic-link login: only someone who can receive email at a real
-  `@bitwarden.com` address can sign in, and every nomination/agree action is
-  attributed to that verified session — there's no more "type any email you like"
-  trust model.
+- Access is gated by Google sign-in: only someone who can authenticate against a real
+  `@bitwarden.com` Google account can get in, and every nomination/agree action is
+  attributed to that verified session — there's no "type any email you like" trust
+  model.
+- The domain restriction is enforced **server-side** on the ID token Google returns.
+  The `hd=bitwarden.com` parameter the app sends only pre-filters Google's account
+  chooser and can't be relied on, so the backend independently re-checks both the
+  email domain and Google's `email_verified` flag before creating a session.
+- Sign-in requests are protected against CSRF with a random `state` value stored in a
+  short-lived `grit_oauth_state` cookie and compared on the callback.
+- The app asks Google only for `openid email profile`, doesn't request offline access,
+  and keeps no Google access or refresh tokens — the ID token is verified once at
+  sign-in and discarded. A person's display name is picked up from their Google
+  profile and refreshed on each sign-in.
 - Sessions are a signed JWT stored in an `httpOnly` cookie (`grit_session`), valid for
   30 days; there's no separate "remember me" toggle.
 - Admin access is a simple email allow-list (`ADMIN_EMAILS`), not a separate
@@ -230,9 +258,10 @@ Then visit http://localhost:4200.
 - Slack notifications are best-effort: if `SLACK_WEBHOOK_URL` isn't set, or the
   webhook call fails, the app logs a warning and continues normally — Slack is never a
   hard dependency for nominating, opening rounds, or spinning the wheel.
-- Magic-link emails degrade the same way: if SMTP isn't configured (or a send fails),
-  the backend logs the link instead of emailing it, so the app stays usable while you
-  finish setting up a real mail provider.
 - `synchronize: true` is enabled on the TypeORM connection for simplicity in this
   internal tool. For a longer-lived production deployment, consider switching to
   proper migrations.
+- If you're upgrading an install that used the old magic-link sign-in, the now-unused
+  `magic_link_tokens` table is left behind rather than dropped automatically. It's
+  harmless, but you can clean it up with
+  `docker compose exec db psql -U postgres -d grit_wheel -c 'DROP TABLE IF EXISTS magic_link_tokens;'`.

@@ -1,76 +1,44 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, OnInit, signal } from '@angular/core';
-import {
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  ValidatorFn,
-  Validators,
-} from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
-function bitwardenEmailValidator(): ValidatorFn {
-  const pattern = /^[a-zA-Z0-9._%+-]+@bitwarden\.com$/i;
-  return (control): ValidationErrors | null => {
-    if (!control.value) return null;
-    return pattern.test(control.value.trim()) ? null : { bitwardenEmail: true };
-  };
-}
+const ERROR_MESSAGES: Record<string, string> = {
+  domain:
+    'That Google account isn\'t a @bitwarden.com address. Sign in with your Bitwarden work account.',
+  cancelled: 'Sign-in was cancelled. Give it another go when you\'re ready.',
+  state: 'That sign-in attempt expired or looked suspicious. Please try again.',
+  google: "We couldn't verify your Google account. Please try again.",
+};
 
 @Component({
   selector: 'app-login-page',
   standalone: true,
-  imports: [ReactiveFormsModule],
   templateUrl: './login-page.component.html',
   styleUrl: './login-page.component.scss',
 })
 export class LoginPageComponent implements OnInit {
-  private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  readonly form = this.fb.group({
-    email: ['', [Validators.required, bitwardenEmailValidator()]],
-  });
-
-  readonly submitting = signal(false);
-  readonly linkSent = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly redirecting = signal(false);
 
   async ngOnInit(): Promise<void> {
+    const error = this.route.snapshot.queryParamMap.get('error');
+    if (error) {
+      this.errorMessage.set(ERROR_MESSAGES[error] ?? 'Something went wrong signing you in.');
+    }
+
     await this.authService.ready;
     if (this.authService.currentUser()) {
       this.router.navigateByUrl('/nominate');
     }
   }
 
-  submit(): void {
-    this.errorMessage.set(null);
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-
-    this.submitting.set(true);
-    const email = this.form.value.email!.trim();
-
-    this.authService.requestMagicLink(email).subscribe({
-      next: () => {
-        this.submitting.set(false);
-        this.linkSent.set(true);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.submitting.set(false);
-        const message = Array.isArray(err.error?.message)
-          ? err.error.message.join(', ')
-          : err.error?.message;
-        this.errorMessage.set(message ?? 'Something went wrong sending your sign-in link.');
-      },
-    });
-  }
-
-  sendAnother(): void {
-    this.linkSent.set(false);
+  signInWithGoogle(): void {
+    this.redirecting.set(true);
+    // Full-page navigation, not an XHR: the backend needs to 302 us to Google.
+    window.location.href = '/api/auth/google';
   }
 }
