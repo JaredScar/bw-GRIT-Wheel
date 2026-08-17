@@ -39,7 +39,7 @@ function createResponse(): FakeResponse {
 }
 
 function createRequest(cookies: Record<string, string> = {}): Request {
-  return { cookies } as unknown as Request;
+  return { cookies } as Request;
 }
 
 describe('AuthController (Google sign-in)', () => {

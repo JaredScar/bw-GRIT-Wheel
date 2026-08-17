@@ -314,7 +314,3 @@ Then visit http://localhost:4200.
 - `synchronize: true` is enabled on the TypeORM connection for simplicity in this
   internal tool. For a longer-lived production deployment, consider switching to
   proper migrations.
-- If you're upgrading an install that used the old magic-link sign-in, the now-unused
-  `magic_link_tokens` table is left behind rather than dropped automatically. It's
-  harmless, but you can clean it up with
-  `docker compose exec db psql -U postgres -d grit_wheel -c 'DROP TABLE IF EXISTS magic_link_tokens;'`.
