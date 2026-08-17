@@ -17,6 +17,14 @@ coverage/
 !.env.example
 !**/.env.example
 
+# IDE / editor settings
+.cursor/
+.idea/
+.vscode/
+*.iml
+*.sublime-workspace
+*.swp
+
 # Logs
 *.log
 npm-debug.log*

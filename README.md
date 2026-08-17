@@ -24,11 +24,12 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
 
 ## How it works
 
-- **Sign in with a magic link**: the entire site requires signing in first. Enter your
-  `@bitwarden.com` email on `/login`, and a one-click sign-in link is emailed to you
-  (or logged to the backend console if SMTP isn't configured yet — see below). The
-  link is single-use and expires after 15 minutes; once verified you get a 30-day
-  session, so you won't need to sign in again on the same device for a while.
+- **Sign in with Google**: the entire site requires signing in first. Click **Continue
+  with Google** on `/login` and pick your Bitwarden work account. Only verified
+  `@bitwarden.com` Google accounts are accepted — a personal Gmail (or any other
+  Workspace domain) is turned away and no account is created for it. Once you're
+  through, you get a 30-day session, so you won't need to sign in again on the same
+  device for a while.
 - **Anyone signed in** can submit a nomination for someone else (the nominee also
   needs a `@bitwarden.com` email). The nominator can choose to submit anonymously —
   their name is hidden from the public view (their verified identity is still
@@ -60,7 +61,8 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
   the wheel picks a winner.
 - Nominations are grouped into **rounds** (one per all-hands meeting). New nominations
   automatically go into whichever round is currently "open."
-- An **admin** (any signed-in user whose email is on the `ADMIN_EMAILS` allow-list) can:
+- An **admin** (any signed-in user holding the `admin` role — see
+  [Roles and admin access](#roles-and-admin-access)) can:
   - Start a new round (this closes the previous one)
   - Spin an animated wheel — choose between one **equally-weighted** slice per unique
     nominee, or a slice **weighted by nomination count** (people nominated more times
@@ -77,10 +79,35 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
 ## Project layout
 
 ```
-backend/    NestJS API (auth/magic-link, nominations, rounds, admin)
+backend/    NestJS API (Google OAuth sign-in, nominations, rounds, admin)
 frontend/   Angular app (login, nominate form, public feed, rounds/winners, admin + wheel)
 docker-compose.yml
 ```
+
+## Setting up Google sign-in
+
+Signing in with Google is the only way into the app, so you need an OAuth client
+before it will start. In the [Google Cloud console](https://console.cloud.google.com/):
+
+1. Pick (or create) a project, then go to **APIs & Services → OAuth consent screen**
+   and configure it with a **User type of Internal**. Internal means only accounts in
+   the Bitwarden Google Workspace can ever complete the flow, which is a second layer
+   of protection on top of the domain check the app does itself.
+2. Go to **APIs & Services → Credentials → Create credentials → OAuth client ID** and
+   choose **Web application**.
+3. Under **Authorized redirect URIs**, add the callback URL. For local development
+   that's:
+
+   ```
+   http://localhost:4200/api/auth/google/callback
+   ```
+
+   Note the port is **4200** (the frontend), not 3000 — `/api/*` is proxied through to
+   the backend both by nginx in Docker and by the Angular dev server. Add your
+   production URL here too when you deploy (e.g.
+   `https://grit.example.com/api/auth/google/callback`).
+4. Copy the generated **Client ID** and **Client secret** into `.env` as described
+   below.
 
 ## Running with Docker (recommended)
 
@@ -91,18 +118,20 @@ docker-compose.yml
    ```
 
    Edit `.env` and set:
+   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — the OAuth client you created above.
+     Both are required; the backend refuses to sign anyone in without them.
+   - `GOOGLE_REDIRECT_URI` — must exactly match one of the **Authorized redirect URIs**
+     on that OAuth client. Leave it blank to fall back to
+     `<FRONTEND_URL>/api/auth/google/callback`.
    - `JWT_SECRET` — a long random secret used to sign session cookies. Generate one
      with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
    - `ADMIN_EMAILS` — a comma-separated list of `@bitwarden.com` emails that should
      have admin access (create rounds, spin the wheel, manage photos, view
      analytics). Anyone else can still sign in and use the rest of the site, just not
-     `/admin`.
-   - `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` — an SMTP
-     relay used to send magic-link sign-in emails (e.g. a Google Workspace SMTP relay,
-     or a transactional email provider). **If left blank, magic links aren't emailed —
-     they're logged to the backend console instead** (`docker compose logs backend`),
-     which is convenient for local testing but you'll want real SMTP configured before
-     rolling this out to the team.
+     `/admin`. See [Roles and admin access](#roles-and-admin-access) for how this
+     interacts with roles stored in the database.
+   - `FRONTEND_URL` — the public URL of the app; people are sent back here after
+     signing in with Google.
    - `COOKIE_SECURE` — set to `true` only if the site is served over HTTPS.
 
    Optionally, set `SLACK_WEBHOOK_URL` to a Slack
@@ -120,16 +149,8 @@ docker-compose.yml
    - Frontend: http://localhost:4200
    - Backend API (optional direct access): http://localhost:3000/api
 
-   You'll land on `/login`. Enter your `@bitwarden.com` email and submit. If you
-   haven't configured SMTP, grab the sign-in link from the backend logs instead of
-   your inbox:
-
-   ```bash
-   docker compose logs -f backend
-   ```
-
-   Look for a line like `Magic link for you@bitwarden.com: http://localhost:4200/auth/verify?token=...`
-   and open that URL in your browser to finish signing in.
+   You'll land on `/login`. Click **Continue with Google** and choose your
+   `@bitwarden.com` account to finish signing in.
 
 The frontend container proxies `/api/*` requests to the backend container, so the
 Angular app always talks to the API on the same origin it's served from.
@@ -154,13 +175,58 @@ Edit `seedRounds` in that file to add your own organization's real historical
 winners — just don't commit real employee names/emails/nomination text if this
 repo (or your fork of it) is public.
 
+## Roles and admin access
+
+Authorization uses the standard NestJS RBAC pattern: a `Role` enum, a `@Roles()`
+decorator, and a global `RolesGuard` that runs after the authentication guard. There
+are two roles today, `user` and `admin`, and they're stored on the `users.roles`
+column, so **admins can be changed without a redeploy**.
+
+Routes without a `@Roles()` decorator are available to any signed-in Bitwarden
+account. Admin-only routes are the round lifecycle (`GET /rounds/current`,
+`GET /rounds/:id/wheel`, `POST /rounds`, `POST /rounds/:id/spin`), the photo
+directory management endpoints, and analytics.
+
+### How someone becomes an admin
+
+`ADMIN_EMAILS` acts as the **floor**, and the database is where you grant anything
+extra:
+
+- On **first sign-in**, a brand new user listed in `ADMIN_EMAILS` is created with the
+  `admin` role. After that, their roles are never overwritten by the env var on
+  subsequent sign-ins, so database changes stick.
+- On **every startup**, anyone on the `ADMIN_EMAILS` list is granted the `admin` role
+  if they don't already have it. This backfills accounts that predate the roles
+  column and guarantees you can always recover admin access through configuration.
+  It's additive, so admins you granted in the database are never revoked by it.
+
+To promote or demote someone directly:
+
+```bash
+# Promote
+docker compose exec db psql -U postgres -d grit_wheel \
+  -c "UPDATE users SET roles='user,admin' WHERE email='someone@bitwarden.com';"
+
+# Demote
+docker compose exec db psql -U postgres -d grit_wheel \
+  -c "UPDATE users SET roles='user' WHERE email='someone@bitwarden.com';"
+```
+
+Changes take effect on the person's **very next request** — the session cookie stores
+only a user ID, and roles are read from the database on each request, so nobody needs
+to sign out and back in.
+
+One caveat worth remembering: a database-only demotion of someone who is still listed
+in `ADMIN_EMAILS` will be undone the next time the backend boots. To demote them for
+good, remove them from `ADMIN_EMAILS` as well.
+
 ## Running locally without Docker (development)
 
 **Backend**
 
 ```bash
 cd backend
-cp .env.example .env   # point DB_HOST at your local Postgres, set JWT_SECRET/ADMIN_EMAILS
+cp .env.example .env   # point DB_HOST at your local Postgres, set GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/JWT_SECRET/ADMIN_EMAILS
 npm install
 npm run start:dev
 ```
@@ -180,10 +246,9 @@ Then visit http://localhost:4200.
 
 ## Using the app
 
-- **Sign in**: `/login` — enter your `@bitwarden.com` email and click the link sent to
-  your inbox (or logged to the backend console, if SMTP isn't set up). You'll stay
-  signed in for 30 days on that device; use **Log out** in the header to end your
-  session early.
+- **Sign in**: `/login` — click **Continue with Google** and pick your
+  `@bitwarden.com` account. You'll stay signed in for 30 days on that device; use
+  **Log out** in the header to end your session early.
 - **Nominate**: once signed in, go to `/nominate`, fill out the form, and submit. The
   nominee's email must end in `@bitwarden.com`; your own identity comes from your
   session automatically.
@@ -195,8 +260,8 @@ Then visit http://localhost:4200.
   nominators, and category champions.
 - **Rounds & Winners**: `/rounds` lists every round, its status, and the winner once
   the wheel has been spun.
-- **Admin**: `/admin` — only visible/usable if your email is on the `ADMIN_EMAILS`
-  allow-list. From there you can:
+- **Admin**: `/admin` — only visible/usable if you hold the `admin` role. From there
+  you can:
   - Start a new round for the upcoming all-hands
   - Spin the wheel for the current round once nominations are in — toggle "Weight
     slices by number of nominations" beforehand if you want people with more
@@ -212,14 +277,30 @@ Then visit http://localhost:4200.
 
 ## Notes & assumptions
 
-- Access is gated by a magic-link login: only someone who can receive email at a real
-  `@bitwarden.com` address can sign in, and every nomination/agree action is
-  attributed to that verified session — there's no more "type any email you like"
-  trust model.
+- Access is gated by Google sign-in: only someone who can authenticate against a real
+  `@bitwarden.com` Google account can get in, and every nomination/agree action is
+  attributed to that verified session — there's no "type any email you like" trust
+  model.
+- The domain restriction is enforced **server-side** on the ID token Google returns.
+  The `hd=bitwarden.com` parameter the app sends only pre-filters Google's account
+  chooser and can't be relied on, so the backend independently re-checks both the
+  email domain and Google's `email_verified` flag before creating a session.
+- Sign-in requests are protected against CSRF with a random `state` value stored in a
+  short-lived `grit_oauth_state` cookie and compared on the callback.
+- The app asks Google only for `openid email profile`, doesn't request offline access,
+  and keeps no Google access or refresh tokens — the ID token is verified once at
+  sign-in and discarded. A person's display name is picked up from their Google
+  profile and refreshed on each sign-in.
 - Sessions are a signed JWT stored in an `httpOnly` cookie (`grit_session`), valid for
   30 days; there's no separate "remember me" toggle.
-- Admin access is a simple email allow-list (`ADMIN_EMAILS`), not a separate
-  role/permissions system — anyone on the list has full admin rights.
+- Authorization is role-based (`user` / `admin`) with roles persisted per user in the
+  database and enforced by a global `RolesGuard`; `ADMIN_EMAILS` seeds and re-grants
+  the `admin` role rather than being checked directly on each request. See
+  [Roles and admin access](#roles-and-admin-access). There are no finer-grained
+  permissions — anyone with `admin` has full admin rights.
+- Roles are read from the database on every request rather than being baked into the
+  session JWT, so promoting or demoting someone takes effect immediately without
+  forcing them to sign in again.
 - Only the **nominator's** identity can be hidden (anonymous nominations); the
   **nominee** is always shown, since the whole point is public recognition.
 - Nominations are visible immediately upon submission — there is no moderation queue.
@@ -230,9 +311,6 @@ Then visit http://localhost:4200.
 - Slack notifications are best-effort: if `SLACK_WEBHOOK_URL` isn't set, or the
   webhook call fails, the app logs a warning and continues normally — Slack is never a
   hard dependency for nominating, opening rounds, or spinning the wheel.
-- Magic-link emails degrade the same way: if SMTP isn't configured (or a send fails),
-  the backend logs the link instead of emailing it, so the app stays usable while you
-  finish setting up a real mail provider.
 - `synchronize: true` is enabled on the TypeORM connection for simplicity in this
   internal tool. For a longer-lived production deployment, consider switching to
   proper migrations.

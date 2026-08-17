@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, Injectable, signal } from '@angular/core';
-import { firstValueFrom, Observable } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { SessionUser } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
@@ -26,20 +26,6 @@ export class AuthService {
       this.currentUser.set(null);
       return null;
     }
-  }
-
-  requestMagicLink(email: string): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.baseUrl}/magic-link`, {
-      email: email.trim().toLowerCase(),
-    });
-  }
-
-  async verify(token: string): Promise<SessionUser> {
-    const user = await firstValueFrom(
-      this.http.post<SessionUser>(`${this.baseUrl}/verify`, { token }),
-    );
-    this.currentUser.set(user);
-    return user;
   }
 
   async logout(): Promise<void> {
