@@ -51,6 +51,10 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
   "champion" for each GRIT category.
 - **Nominee autocomplete**: the nomination form suggests previously-nominated people
   by email as you type, auto-filling their name to cut down on typos.
+- **Profile photos come from Google**: there's nothing to upload or manage. Whoever
+  signs in brings their Google profile picture with them, and it's refreshed on each
+  sign-in. Anyone who hasn't signed in yet — including someone who's been nominated
+  but never opened the app — shows a coloured initials placeholder instead.
 - **Confetti + sound** when the admin reveals a wheel winner, for a little extra
   celebration at the all-hands.
 - **Shareable winner card**: after a spin (or from `/rounds` for any past winner),
@@ -69,9 +73,6 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
     get a bigger slice and better odds) — the backend picks the random winner so
     results can't be manipulated from the browser
   - See the full history of rounds and winners
-  - Upload a headshot for anyone by their `@bitwarden.com` email (the **Photo
-    directory** section on `/admin`) — once uploaded, that person's photo shows up
-    automatically next to their nominations and any round they've won
   - View an **Analytics** dashboard (also on `/admin`) with totals (nominations,
     rounds, agrees, unique nominees/nominators, average nominations per round) and bar
     charts of nominations by GRIT category and by round
@@ -126,8 +127,8 @@ before it will start. In the [Google Cloud console](https://console.cloud.google
    - `JWT_SECRET` — a long random secret used to sign session cookies. Generate one
      with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
    - `ADMIN_EMAILS` — a comma-separated list of `@bitwarden.com` emails that should
-     have admin access (create rounds, spin the wheel, manage photos, view
-     analytics). Anyone else can still sign in and use the rest of the site, just not
+     have admin access (create rounds, spin the wheel, view analytics). Anyone
+     else can still sign in and use the rest of the site, just not
      `/admin`. See [Roles and admin access](#roles-and-admin-access) for how this
      interacts with roles stored in the database.
    - `FRONTEND_URL` — the public URL of the app; people are sent back here after
@@ -184,8 +185,7 @@ column, so **admins can be changed without a redeploy**.
 
 Routes without a `@Roles()` decorator are available to any signed-in Bitwarden
 account. Admin-only routes are the round lifecycle (`GET /rounds/current`,
-`GET /rounds/:id/wheel`, `POST /rounds`, `POST /rounds/:id/spin`), the photo
-directory management endpoints, and analytics.
+`GET /rounds/:id/wheel`, `POST /rounds`, `POST /rounds/:id/spin`) and analytics.
 
 ### How someone becomes an admin
 
@@ -244,6 +244,233 @@ npm start   # proxies /api to http://localhost:3000 (see proxy.conf.json)
 
 Then visit http://localhost:4200.
 
+## Deploying to production
+
+The production setup is a single VM running the same containers as local
+development, with a [Caddy](https://caddyserver.com/) container added in front to
+terminate TLS and renew certificates automatically:
+
+```
+Internet -> :443 caddy -> frontend (nginx) -> /api/* -> backend -> db
+                                           -> /*     static Angular bundle
+```
+
+Four files drive it:
+
+| File | Purpose |
+| --- | --- |
+| `docker-compose.prod.yml` | Pulls prebuilt images instead of building; adds Caddy; keeps the database and API off the public internet |
+| `Caddyfile` | TLS termination, security headers, reverse proxy to the frontend |
+| `.env.production.example` | Template for the VM's `.env` |
+| `.github/workflows/deploy.yml` | Builds, pushes, and rolls out a new version on every `v*` tag — see [Automated deploys](#7-automated-deploys-with-github-actions) |
+
+The API deliberately publishes no ports here. In `docker-compose.yml` the backend
+maps `3000:3000` for convenience, which on a public host would expose the API
+over plaintext HTTP alongside the TLS-terminated site.
+
+### 1. Build and push images
+
+Images are pulled, never built, on the VM — an Angular production build needs
+more memory than a small instance has to spare. Create the registry once:
+
+```bash
+gcloud artifacts repositories create grit \
+  --repository-format=docker --location=us-central1
+gcloud auth configure-docker us-central1-docker.pkg.dev
+```
+
+Then, from a workstation (`--platform linux/amd64` matters on Apple Silicon,
+otherwise you will produce arm64 images the VM cannot run):
+
+```bash
+REPO=us-central1-docker.pkg.dev/YOUR_PROJECT/grit
+docker buildx build --platform linux/amd64 -t $REPO/backend:v1.0.0  --push ./backend
+docker buildx build --platform linux/amd64 -t $REPO/frontend:v1.0.0 --push ./frontend
+```
+
+### 2. Provision the VM
+
+```bash
+gcloud compute addresses create grit-ip --region=us-central1
+
+gcloud compute instances create grit-wheel \
+  --zone=us-central1-a --machine-type=e2-small \
+  --image-family=debian-12 --image-project=debian-cloud \
+  --boot-disk-size=30GB --boot-disk-type=pd-balanced \
+  --address=grit-ip --tags=grit-web \
+  --scopes=https://www.googleapis.com/auth/cloud-platform
+
+gcloud compute firewall-rules create grit-allow-web \
+  --allow=tcp:80,tcp:443,udp:443 --target-tags=grit-web --source-ranges=0.0.0.0/0
+
+gcloud compute firewall-rules create grit-allow-iap-ssh \
+  --allow=tcp:22 --target-tags=grit-web --source-ranges=35.235.240.0/20
+```
+
+SSH goes through IAP rather than a public port 22, and `udp:443` is what lets
+Caddy serve HTTP/3. Install Docker on the instance with
+`curl -fsSL https://get.docker.com | sudo sh`, then grant the VM's service
+account `roles/artifactregistry.reader` so it can pull.
+
+### 3. Point DNS at it
+
+Create an A record for your hostname pointing at the reserved IP
+(`gcloud compute addresses describe grit-ip --region=us-central1`). **Do this
+before starting Caddy** — it requests a certificate on first boot, and ACME will
+fail in a retry loop if the name does not resolve yet.
+
+If you are waiting on DNS, you can still bring the stack up for a smoke test by
+setting `SITE_ADDRESS=:80` and `COOKIE_SECURE=false`, which serves plain HTTP
+and skips certificates entirely. Google sign-in will not work in that state —
+Google rejects non-HTTPS redirect URIs for anything but localhost — so the app
+loads but you cannot get past `/login`.
+
+### 4. Register the production callback
+
+Add the production URL to your OAuth client's **Authorized redirect URIs**:
+
+```
+https://your-host.example.com/api/auth/google/callback
+```
+
+The path is derived from the *frontend* origin, not the backend's, because the
+callback arrives through the nginx proxy — that is why there is no `:3000` in it.
+
+Note that the **Internal** user type recommended above is only selectable when
+the Google Cloud project belongs to a Workspace organization. In a personal
+project you must use **External**, and you should move it from *Testing* to
+*In production* or you are capped at 100 manually-added test users. That is
+still safe here: the app requests only the non-sensitive `openid email profile`
+scopes, and the backend independently rejects any address that is not a verified
+`@bitwarden.com` account before it will create a session.
+
+### 5. Deploy
+
+The VM holds `docker-compose.prod.yml` and `Caddyfile` as plain files rather than
+a git checkout. Automated deploys copy those two files up on every release, which
+would leave a clone permanently dirty and make `git pull` conflict, so copy them
+instead of cloning. From your workstation:
+
+```bash
+gcloud compute ssh grit-wheel --zone=us-central1-a --tunnel-through-iap \
+  --command 'sudo mkdir -p /opt/grit && sudo chown $USER /opt/grit'
+
+gcloud compute scp docker-compose.prod.yml Caddyfile .env.production.example \
+  grit-wheel:/opt/grit/ --zone=us-central1-a --tunnel-through-iap
+```
+
+Then on the VM, fill in the environment and start the stack:
+
+```bash
+cd /opt/grit
+mv .env.production.example .env   # then fill it in
+sudo docker compose -f docker-compose.prod.yml up -d
+sudo docker compose -f docker-compose.prod.yml logs -f caddy   # watch cert issuance
+```
+
+Keep the `IMAGE_TAG=` line in that `.env` even once deploys are automated — the
+workflow rewrites it in place and fails loudly if the line is missing.
+
+To ship a new version by hand, push new image tags, then update `IMAGE_TAG` in
+`/opt/grit/.env` and run:
+
+```bash
+sudo docker compose -f docker-compose.prod.yml pull
+sudo docker compose -f docker-compose.prod.yml up -d
+```
+
+### 6. Back up the database
+
+There are no uploaded files anywhere — headshots come from Google and are fetched
+on demand — so a database dump is a complete backup. A nightly cron is enough:
+
+```bash
+sudo docker compose -f /opt/grit/docker-compose.prod.yml exec -T db \
+  pg_dump -U postgres grit_wheel | gzip > /tmp/grit-$(date +%F).sql.gz
+gcloud storage cp /tmp/grit-$(date +%F).sql.gz gs://your-backup-bucket/
+```
+
+Because `synchronize: true` applies schema changes automatically at boot, take a
+dump before deploying any release that changes an entity. The automated deploy
+below does this for you on every release.
+
+### 7. Automated deploys with GitHub Actions
+
+Once the VM is running, `.github/workflows/deploy.yml` takes over the manual
+steps above. Pushing a `v*` tag runs the backend test suite, builds and pushes
+both images (tagged with the tag and `latest`), copies `docker-compose.prod.yml`
+and `Caddyfile` up to `/opt/grit`, dumps the database, rewrites `IMAGE_TAG` in
+the VM's `.env`, pulls and restarts, and finally polls the site until
+`/api/auth/me` answers `401` — an unauthenticated 401 means the backend booted,
+reached the database, and is being proxied correctly.
+
+```bash
+git tag v1.0.1 && git push origin v1.0.1
+```
+
+The workflow runs on tag pushes only. **Do not add `pull_request` to its
+triggers**: this repository is public, and a workflow holding `id-token: write`
+that runs on PRs would let anyone who opens one mint a Google Cloud access token.
+Note that only the backend tests gate a release — a frontend compile error
+surfaces later, when its image is built, which is still before the VM is touched.
+
+#### Authentication
+
+CI authenticates with Workload Identity Federation, so there are **no GitHub
+secrets and no service account keys** to rotate. Create the pool, provider, and
+deploy service account once:
+
+```bash
+PROJECT_ID=your-project
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+GITHUB_REPO=JaredScar/bw-GRIT-Wheel
+
+gcloud iam service-accounts create grit-deployer --display-name='GRIT deploy (GitHub Actions)'
+SA=grit-deployer@$PROJECT_ID.iam.gserviceaccount.com
+
+gcloud iam workload-identity-pools create github --location=global
+gcloud iam workload-identity-pools providers create-oidc github \
+  --location=global --workload-identity-pool=github \
+  --issuer-uri=https://token.actions.githubusercontent.com \
+  --attribute-mapping='google.subject=assertion.sub,attribute.repository=assertion.repository' \
+  --attribute-condition="assertion.repository=='$GITHUB_REPO'"
+
+# Without the attribute condition above, a workflow in *any* GitHub repository
+# could impersonate this service account.
+gcloud iam service-accounts add-iam-policy-binding $SA \
+  --role=roles/iam.workloadIdentityUser \
+  --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository/$GITHUB_REPO"
+
+for ROLE in roles/artifactregistry.writer roles/compute.osAdminLogin \
+            roles/iap.tunnelResourceAccessor roles/iam.serviceAccountUser; do
+  gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="$ROLE"
+done
+```
+
+`compute.osAdminLogin` rather than plain `osLogin` is deliberate: the deploy
+steps run `sudo docker compose`, and only the admin variant grants passwordless
+sudo over SSH.
+
+#### Repository configuration
+
+The deploy job targets a GitHub Environment named `production`, so create it
+under **Settings → Environments** (a good place to add required reviewers if you
+want a human to approve each release). Then add these as repository or
+environment **variables** — none of them are secrets:
+
+| Variable | Example | Purpose |
+| --- | --- | --- |
+| `GCP_WIF_PROVIDER` | `projects/123456789/locations/global/workloadIdentityPools/github/providers/github` | Identity pool provider CI presents its OIDC token to |
+| `GCP_SERVICE_ACCOUNT` | `grit-deployer@your-project.iam.gserviceaccount.com` | Service account CI impersonates |
+| `IMAGE_REPO` | `us-central1-docker.pkg.dev/your-project/grit` | Artifact Registry path images are pushed to |
+| `GCP_INSTANCE` | `grit-wheel` | VM name for `scp`/`ssh` |
+| `GCP_ZONE` | `us-central1-a` | Zone that VM lives in |
+| `SITE_URL` | `https://grit.example.com` | Target for the post-deploy smoke test |
+
+`IMAGE_REPO` is configured twice — here, and in the VM's `/opt/grit/.env`. CI
+pushes to this one while Compose pulls using the VM's, so if they disagree the
+deploy appears to succeed while the VM quietly keeps running the old images.
+
 ## Using the app
 
 - **Sign in**: `/login` — click **Continue with Google** and pick your
@@ -269,10 +496,6 @@ Then visit http://localhost:4200.
   - View round history
   - Share a winner card as a PNG (or via your device's share sheet) right after a spin,
     or later from `/rounds`
-  - Manage the **photo directory** — upload, replace, or remove a headshot for any
-    `@bitwarden.com` email. People who've been nominated show up automatically so you
-    can add their photo without retyping their email; you can also add a photo for
-    someone by email before they've ever been nominated.
   - Check the **Analytics** section for totals and category/round breakdowns
 
 ## Notes & assumptions
@@ -289,8 +512,21 @@ Then visit http://localhost:4200.
   short-lived `grit_oauth_state` cookie and compared on the callback.
 - The app asks Google only for `openid email profile`, doesn't request offline access,
   and keeps no Google access or refresh tokens — the ID token is verified once at
-  sign-in and discarded. A person's display name is picked up from their Google
-  profile and refreshed on each sign-in.
+  sign-in and discarded. A person's display name and profile picture URL are picked
+  up from their Google profile and refreshed on each sign-in.
+- Profile photos come from Google and there is **no upload feature**. That means a
+  photo only exists for someone who has signed in at least once. Nominees are stored
+  as free-text emails on the nomination with no link to a user account, so anyone who
+  has never opened the app shows an initials placeholder — including, potentially, a
+  round winner. Coverage starts empty and fills in as people sign in.
+- Avatars are proxied through `GET /api/avatars/:email` rather than linking Google's
+  CDN directly. Serving them same-origin is what keeps the winner card's canvas
+  export working, since that draws the image with `crossOrigin = 'anonymous'` before
+  calling `toBlob()`. Responses are cached in memory for an hour (five minutes for
+  misses) so a busy feed doesn't fan out to one request per card.
+- Because the picture URL is only refreshed at sign-in and sessions last 30 days, a
+  changed Google avatar can take up to a month to appear. Google also rotates these
+  URLs; a stale one 404s and falls back to initials until that person signs in again.
 - Sessions are a signed JWT stored in an `httpOnly` cookie (`grit_session`), valid for
   30 days; there's no separate "remember me" toggle.
 - Authorization is role-based (`user` / `admin`) with roles persisted per user in the
@@ -314,3 +550,8 @@ Then visit http://localhost:4200.
 - `synchronize: true` is enabled on the TypeORM connection for simplicity in this
   internal tool. For a longer-lived production deployment, consider switching to
   proper migrations.
+- If you're upgrading an install that predates Google-sourced avatars, the now-unused
+  `person_photos` table is left behind rather than dropped automatically, since
+  `synchronize` only manages tables it still has entities for. It's harmless, but you
+  can reclaim the space (uploaded images were stored in it as `bytea`) with
+  `docker compose exec db psql -U postgres -d grit_wheel -c 'DROP TABLE IF EXISTS person_photos;'`.

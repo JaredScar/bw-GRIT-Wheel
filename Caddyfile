@@ -1,0 +1,27 @@
+# TLS terminator for the production VM deployment.
+#
+# SITE_ADDRESS is the public hostname (e.g. grit.example.com). Caddy provisions
+# and renews a Let's Encrypt certificate for it automatically, so there is no
+# certbot cron to maintain — but that also means DNS has to already resolve to
+# this VM before the container starts, or ACME will fail in a retry loop.
+#
+# Set SITE_ADDRESS to ":80" to serve plain HTTP with no certificate at all.
+# That is only useful for smoke-testing the stack before DNS exists: Google
+# sign-in cannot complete over HTTP, because Google rejects non-HTTPS redirect
+# URIs for anything other than localhost.
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	# The frontend image serves the Angular bundle and proxies /api/* onward to
+	# the backend container, so everything stays same-origin from the browser's
+	# point of view and the grit_session cookie keeps working.
+	reverse_proxy frontend:80
+}

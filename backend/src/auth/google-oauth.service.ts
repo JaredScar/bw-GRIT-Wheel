@@ -9,6 +9,7 @@ const SCOPES = ['openid', 'email', 'profile'];
 export interface GoogleProfile {
   email: string;
   name: string | null;
+  picture: string | null;
 }
 
 @Injectable()
@@ -74,6 +75,7 @@ export class GoogleOAuthService {
     return {
       email: payload.email.trim().toLowerCase(),
       name: payload.name?.trim() || null,
+      picture: payload.picture?.trim() || null,
     };
   }
 }

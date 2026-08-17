@@ -1,0 +1,133 @@
+name: Deploy
+
+# Tag pushes only. Do not add pull_request here: this repository is public, and a
+# workflow with id-token permissions that runs on PRs would let anyone who opens
+# one mint a Google Cloud access token.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+# Two overlapping deploys would fight over IMAGE_TAG on the VM.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: us-central1-docker.pkg.dev
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm test
+        working-directory: backend
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ vars.IMAGE_REPO }}/backend:${{ github.ref_name }}
+            ${{ vars.IMAGE_REPO }}/backend:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ vars.IMAGE_REPO }}/frontend:${{ github.ref_name }}
+            ${{ vars.IMAGE_REPO }}/frontend:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+      # The VM holds these as plain files rather than a checkout, so a change to
+      # either one only reaches production if we copy it up here.
+      - name: Sync compose and Caddy config
+        run: |
+          gcloud compute scp docker-compose.prod.yml Caddyfile \
+            ${{ vars.GCP_INSTANCE }}:/opt/grit/ \
+            --zone ${{ vars.GCP_ZONE }} --tunnel-through-iap --quiet
+
+      # TypeORM runs with synchronize: true, so entity changes hit the schema the
+      # moment the new backend boots. Keep a dump from immediately before that.
+      - name: Back up the database
+        run: |
+          gcloud compute ssh ${{ vars.GCP_INSTANCE }} \
+            --zone ${{ vars.GCP_ZONE }} --tunnel-through-iap --quiet --command '
+              set -euo pipefail
+              cd /opt/grit
+              mkdir -p backups
+              sudo docker compose -f docker-compose.prod.yml exec -T db \
+                pg_dump -U postgres grit_wheel | gzip > "backups/$(date +%F-%H%M%S).sql.gz"
+              ls -1t backups/*.sql.gz | tail -n +8 | xargs -r rm --
+            '
+
+      - name: Deploy ${{ github.ref_name }}
+        run: |
+          gcloud compute ssh ${{ vars.GCP_INSTANCE }} \
+            --zone ${{ vars.GCP_ZONE }} --tunnel-through-iap --quiet --command '
+              set -euo pipefail
+              cd /opt/grit
+              sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${{ github.ref_name }}|" .env
+              grep "^IMAGE_TAG=" .env
+              sudo docker compose -f docker-compose.prod.yml pull
+              sudo docker compose -f docker-compose.prod.yml up -d
+              sudo docker image prune -f
+            '
+
+      # /api/auth/me is behind the auth guard, so an unauthenticated 401 means the
+      # backend booted, reached the database, and is being proxied correctly.
+      - name: Smoke test
+        run: |
+          for _ in $(seq 1 30); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' \
+              "${{ vars.SITE_URL }}/api/auth/me" || true)
+            if [ "$code" = "401" ]; then
+              echo "API healthy"
+              exit 0
+            fi
+            echo "waiting, got $code"
+            sleep 5
+          done
+          echo "::error::API never returned 401; check the stack on the VM"
+          exit 1
