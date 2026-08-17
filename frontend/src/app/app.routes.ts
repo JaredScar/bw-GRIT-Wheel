@@ -32,14 +32,16 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/admin-page/admin-page.component').then((m) => m.AdminPageComponent),
   },
-  {
-    path: 'leaderboard',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./pages/leaderboard-page/leaderboard-page.component').then(
-        (m) => m.LeaderboardPageComponent,
-      ),
-  },
+  // Leaderboard is temporarily disabled; keeping the route commented out (rather than
+  // deleting the page) so it can be re-enabled later without rebuilding it from scratch.
+  // {
+  //   path: 'leaderboard',
+  //   canActivate: [authGuard],
+  //   loadComponent: () =>
+  //     import('./pages/leaderboard-page/leaderboard-page.component').then(
+  //       (m) => m.LeaderboardPageComponent,
+  //     ),
+  // },
   {
     path: 'people/:email',
     canActivate: [authGuard],
