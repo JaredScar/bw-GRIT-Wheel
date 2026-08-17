@@ -255,13 +255,14 @@ Internet -> :443 caddy -> frontend (nginx) -> /api/* -> backend -> db
                                            -> /*     static Angular bundle
 ```
 
-Three files drive it:
+Four files drive it:
 
 | File | Purpose |
 | --- | --- |
 | `docker-compose.prod.yml` | Pulls prebuilt images instead of building; adds Caddy; keeps the database and API off the public internet |
 | `Caddyfile` | TLS termination, security headers, reverse proxy to the frontend |
 | `.env.production.example` | Template for the VM's `.env` |
+| `.github/workflows/deploy.yml` | Builds, pushes, and rolls out a new version on every `v*` tag — see [Automated deploys](#7-automated-deploys-with-github-actions) |
 
 The API deliberately publishes no ports here. In `docker-compose.yml` the backend
 maps `3000:3000` for convenience, which on a public host would expose the API
@@ -345,21 +346,37 @@ scopes, and the backend independently rejects any address that is not a verified
 
 ### 5. Deploy
 
+The VM holds `docker-compose.prod.yml` and `Caddyfile` as plain files rather than
+a git checkout. Automated deploys copy those two files up on every release, which
+would leave a clone permanently dirty and make `git pull` conflict, so copy them
+instead of cloning. From your workstation:
+
 ```bash
-sudo mkdir -p /opt/grit && sudo chown $USER /opt/grit
-git clone https://github.com/JaredScar/bw-GRIT-Wheel.git /opt/grit
-cd /opt/grit
-cp .env.production.example .env   # then fill it in
-docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml logs -f caddy   # watch cert issuance
+gcloud compute ssh grit-wheel --zone=us-central1-a --tunnel-through-iap \
+  --command 'sudo mkdir -p /opt/grit && sudo chown $USER /opt/grit'
+
+gcloud compute scp docker-compose.prod.yml Caddyfile .env.production.example \
+  grit-wheel:/opt/grit/ --zone=us-central1-a --tunnel-through-iap
 ```
 
-To ship a new version, push new image tags, then update `IMAGE_TAG` in
+Then on the VM, fill in the environment and start the stack:
+
+```bash
+cd /opt/grit
+mv .env.production.example .env   # then fill it in
+sudo docker compose -f docker-compose.prod.yml up -d
+sudo docker compose -f docker-compose.prod.yml logs -f caddy   # watch cert issuance
+```
+
+Keep the `IMAGE_TAG=` line in that `.env` even once deploys are automated — the
+workflow rewrites it in place and fails loudly if the line is missing.
+
+To ship a new version by hand, push new image tags, then update `IMAGE_TAG` in
 `/opt/grit/.env` and run:
 
 ```bash
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
+sudo docker compose -f docker-compose.prod.yml pull
+sudo docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### 6. Back up the database
@@ -368,13 +385,91 @@ There are no uploaded files anywhere — headshots come from Google and are fetc
 on demand — so a database dump is a complete backup. A nightly cron is enough:
 
 ```bash
-docker compose -f /opt/grit/docker-compose.prod.yml exec -T db \
+sudo docker compose -f /opt/grit/docker-compose.prod.yml exec -T db \
   pg_dump -U postgres grit_wheel | gzip > /tmp/grit-$(date +%F).sql.gz
 gcloud storage cp /tmp/grit-$(date +%F).sql.gz gs://your-backup-bucket/
 ```
 
 Because `synchronize: true` applies schema changes automatically at boot, take a
-dump before deploying any release that changes an entity.
+dump before deploying any release that changes an entity. The automated deploy
+below does this for you on every release.
+
+### 7. Automated deploys with GitHub Actions
+
+Once the VM is running, `.github/workflows/deploy.yml` takes over the manual
+steps above. Pushing a `v*` tag runs the backend test suite, builds and pushes
+both images (tagged with the tag and `latest`), copies `docker-compose.prod.yml`
+and `Caddyfile` up to `/opt/grit`, dumps the database, rewrites `IMAGE_TAG` in
+the VM's `.env`, pulls and restarts, and finally polls the site until
+`/api/auth/me` answers `401` — an unauthenticated 401 means the backend booted,
+reached the database, and is being proxied correctly.
+
+```bash
+git tag v1.0.1 && git push origin v1.0.1
+```
+
+The workflow runs on tag pushes only. **Do not add `pull_request` to its
+triggers**: this repository is public, and a workflow holding `id-token: write`
+that runs on PRs would let anyone who opens one mint a Google Cloud access token.
+Note that only the backend tests gate a release — a frontend compile error
+surfaces later, when its image is built, which is still before the VM is touched.
+
+#### Authentication
+
+CI authenticates with Workload Identity Federation, so there are **no GitHub
+secrets and no service account keys** to rotate. Create the pool, provider, and
+deploy service account once:
+
+```bash
+PROJECT_ID=your-project
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+GITHUB_REPO=JaredScar/bw-GRIT-Wheel
+
+gcloud iam service-accounts create grit-deployer --display-name='GRIT deploy (GitHub Actions)'
+SA=grit-deployer@$PROJECT_ID.iam.gserviceaccount.com
+
+gcloud iam workload-identity-pools create github --location=global
+gcloud iam workload-identity-pools providers create-oidc github \
+  --location=global --workload-identity-pool=github \
+  --issuer-uri=https://token.actions.githubusercontent.com \
+  --attribute-mapping='google.subject=assertion.sub,attribute.repository=assertion.repository' \
+  --attribute-condition="assertion.repository=='$GITHUB_REPO'"
+
+# Without the attribute condition above, a workflow in *any* GitHub repository
+# could impersonate this service account.
+gcloud iam service-accounts add-iam-policy-binding $SA \
+  --role=roles/iam.workloadIdentityUser \
+  --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository/$GITHUB_REPO"
+
+for ROLE in roles/artifactregistry.writer roles/compute.osAdminLogin \
+            roles/iap.tunnelResourceAccessor roles/iam.serviceAccountUser; do
+  gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA" --role="$ROLE"
+done
+```
+
+`compute.osAdminLogin` rather than plain `osLogin` is deliberate: the deploy
+steps run `sudo docker compose`, and only the admin variant grants passwordless
+sudo over SSH.
+
+#### Repository configuration
+
+The deploy job targets a GitHub Environment named `production`, so create it
+under **Settings → Environments** (a good place to add required reviewers if you
+want a human to approve each release). Then add these as repository or
+environment **variables** — none of them are secrets:
+
+| Variable | Example | Purpose |
+| --- | --- | --- |
+| `GCP_WIF_PROVIDER` | `projects/123456789/locations/global/workloadIdentityPools/github/providers/github` | Identity pool provider CI presents its OIDC token to |
+| `GCP_SERVICE_ACCOUNT` | `grit-deployer@your-project.iam.gserviceaccount.com` | Service account CI impersonates |
+| `IMAGE_REPO` | `us-central1-docker.pkg.dev/your-project/grit` | Artifact Registry path images are pushed to |
+| `GCP_INSTANCE` | `grit-wheel` | VM name for `scp`/`ssh` |
+| `GCP_ZONE` | `us-central1-a` | Zone that VM lives in |
+| `SITE_URL` | `https://grit.example.com` | Target for the post-deploy smoke test |
+
+`IMAGE_REPO` is configured twice — here, and in the VM's `/opt/grit/.env`. CI
+pushes to this one while Compose pulls using the VM's, so if they disagree the
+deploy appears to succeed while the VM quietly keeps running the old images.
 
 ## Using the app
 

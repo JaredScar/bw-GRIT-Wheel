@@ -39,7 +39,7 @@ describe('AuthService roles', () => {
     it('seeds a brand new allow-listed user with the admin role', async () => {
       const { service, repository } = createService();
 
-      await service.signInWithGoogleProfile({ email: ADMIN_EMAIL, name: 'Admin' });
+      await service.signInWithGoogleProfile({ email: ADMIN_EMAIL, name: 'Admin', picture: null });
 
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({ roles: [Role.User, Role.Admin] }),
@@ -49,7 +49,11 @@ describe('AuthService roles', () => {
     it('seeds a brand new ordinary user with only the user role', async () => {
       const { service, repository } = createService();
 
-      await service.signInWithGoogleProfile({ email: 'someone@bitwarden.com', name: 'Someone' });
+      await service.signInWithGoogleProfile({
+        email: 'someone@bitwarden.com',
+        name: 'Someone',
+        picture: null,
+      });
 
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({ roles: [Role.User] }),
@@ -68,9 +72,29 @@ describe('AuthService roles', () => {
       const { user } = await service.signInWithGoogleProfile({
         email: 'promoted@bitwarden.com',
         name: 'Promoted',
+        picture: null,
       });
 
       expect(user.roles).toEqual([Role.User, Role.Admin]);
+    });
+
+    it('refreshes the stored picture URL on every sign-in', async () => {
+      const existing = {
+        id: '1',
+        email: 'someone@bitwarden.com',
+        name: 'Someone',
+        pictureUrl: 'https://lh3.googleusercontent.com/a/old=s96-c',
+        roles: [Role.User],
+      } as User;
+      const { service } = createService([existing]);
+
+      const { user } = await service.signInWithGoogleProfile({
+        email: 'someone@bitwarden.com',
+        name: 'Someone',
+        picture: 'https://lh3.googleusercontent.com/a/new=s96-c',
+      });
+
+      expect(user.pictureUrl).toBe('https://lh3.googleusercontent.com/a/new=s96-c');
     });
   });
 
