@@ -1,0 +1,90 @@
+# Production stack for the single-VM deployment.
+#
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Unlike docker-compose.yml (which builds from source for local development),
+# this file only ever pulls prebuilt images from Artifact Registry — an Angular
+# production build needs more memory than a small VM has to spare. Values are
+# interpolated from a .env file sitting next to this one; see
+# .env.production.example for the full list.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:-grit_wheel}
+    volumes:
+      - grit_wheel_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: ${IMAGE_REPO:?Set IMAGE_REPO in .env}/backend:${IMAGE_TAG:?Set IMAGE_TAG in .env}
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-grit_wheel}
+      FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL in .env}
+      # Everything is same-origin behind Caddy, so the only legitimate origin is
+      # the site itself. Leaving this unset would make the API reflect *any*
+      # origin back with credentials allowed.
+      CORS_ORIGIN: ${FRONTEND_URL}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:?Set ADMIN_EMAILS in .env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in .env}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?Set GOOGLE_CLIENT_SECRET in .env}
+      # Blank falls back to <FRONTEND_URL>/api/auth/google/callback, which is
+      # what you want unless the OAuth client was registered with something else.
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: ${IMAGE_REPO}/frontend:${IMAGE_TAG}
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Set SITE_ADDRESS in .env}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  grit_wheel_db_data:
+  caddy_data:
+  caddy_config:

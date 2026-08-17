@@ -95,6 +95,9 @@ export class AuthService implements OnModuleInit {
     if (profile.name) {
       user.name = profile.name;
     }
+    // Kept in sync on every sign-in: Google rotates these URLs, and a stale one just
+    // 404s through the avatar proxy and falls back to initials until the next login.
+    user.pictureUrl = profile.picture;
     user.lastLoginAt = new Date();
     user = await this.usersRepository.save(user);
 

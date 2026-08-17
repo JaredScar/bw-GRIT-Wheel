@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { PhotoService } from './photo.service';
+import { AvatarService } from './avatar.service';
 
 export interface WinnerCardParams {
   name: string;
@@ -15,7 +15,7 @@ const INITIALS_COLORS = ['#175ddc', '#e07a1f', '#6c4de6', '#0b826a', '#b7280c', 
 
 @Injectable({ providedIn: 'root' })
 export class WinnerCardService {
-  constructor(private readonly photoService: PhotoService) {}
+  constructor(private readonly avatarService: AvatarService) {}
 
   /** Tries the native share sheet first (great on mobile/Slack apps); falls back to a direct download. */
   async shareOrDownload(params: WinnerCardParams): Promise<'shared' | 'downloaded'> {
@@ -48,7 +48,7 @@ export class WinnerCardService {
     ctx.fillText('GRIT Award', 60, 100);
 
     const avatarX = CARD_WIDTH / 2;
-    const image = await this.tryLoadImage(this.photoService.photoUrl(params.email));
+    const image = await this.tryLoadImage(this.avatarService.avatarUrl(params.email));
 
     ctx.save();
     ctx.beginPath();

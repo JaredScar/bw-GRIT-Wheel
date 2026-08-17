@@ -9,13 +9,14 @@ build/
 # Test coverage
 coverage/
 
-# Environment files (contain real secrets: JWT_SECRET, SMTP credentials, DB
-# passwords, Slack webhook URLs, etc.) — never commit these. Only the
-# checked-in *.env.example templates should ever be tracked.
+# Environment files (contain real secrets: JWT_SECRET, Google OAuth client
+# secrets, DB passwords, Slack webhook URLs, etc.) — never commit these. Only
+# the checked-in *.env.example templates should ever be tracked.
 .env
 .env.*
 !.env.example
 !**/.env.example
+!.env.production.example
 
 # IDE / editor settings
 .cursor/

@@ -7,12 +7,10 @@ import { AvatarComponent } from '../../components/avatar/avatar.component';
 import { WheelComponent, WheelSegment } from '../../components/wheel/wheel.component';
 import { AnalyticsSummary } from '../../models/analytics.model';
 import { GRIT_CATEGORY_LABELS, GritCategory } from '../../models/grit-category';
-import { DirectoryEntry } from '../../models/photo.model';
 import { Round, RoundStatus, WheelEntry, WheelMode } from '../../models/round.model';
 import { AnalyticsService } from '../../services/analytics.service';
 import { AuthService } from '../../services/auth.service';
 import { CelebrationService } from '../../services/celebration.service';
-import { PhotoService } from '../../services/photo.service';
 import { RoundService } from '../../services/round.service';
 import { WinnerCardService } from '../../services/winner-card.service';
 
@@ -32,21 +30,11 @@ export class AdminPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   readonly authService = inject(AuthService);
   private readonly roundService = inject(RoundService);
-  private readonly photoService = inject(PhotoService);
   private readonly celebrationService = inject(CelebrationService);
   private readonly winnerCardService = inject(WinnerCardService);
   private readonly analyticsService = inject(AnalyticsService);
 
   readonly categoryLabels = GRIT_CATEGORY_LABELS;
-
-  readonly photoForm = this.fb.group({
-    email: ['', [Validators.required]],
-  });
-  readonly selectedFile = signal<File | null>(null);
-  readonly directory = signal<DirectoryEntry[]>([]);
-  readonly loadingDirectory = signal(false);
-  readonly uploadingEmail = signal<string | null>(null);
-  readonly photoError = signal<string | null>(null);
 
   readonly newRoundForm = this.fb.group({
     title: ['', [Validators.required, Validators.maxLength(160)]],
@@ -81,7 +69,6 @@ export class AdminPageComponent implements OnInit {
     await this.authService.ready;
     if (this.authService.isAdmin()) {
       this.loadEverything();
-      this.loadDirectory();
       this.loadAnalytics();
     }
   }
@@ -207,79 +194,5 @@ export class AdminPageComponent implements OnInit {
 
   categoryBadgeClass(category: GritCategory): string {
     return `badge-${category.toLowerCase()}`;
-  }
-
-  loadDirectory(): void {
-    this.loadingDirectory.set(true);
-    this.photoService.getDirectory().subscribe({
-      next: (entries) => {
-        this.directory.set(entries);
-        this.loadingDirectory.set(false);
-      },
-      error: () => this.loadingDirectory.set(false),
-    });
-  }
-
-  onFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.selectedFile.set(input.files?.[0] ?? null);
-  }
-
-  uploadPhotoFromForm(): void {
-    this.photoError.set(null);
-    const email = this.photoForm.value.email?.trim();
-    const file = this.selectedFile();
-    if (!email) {
-      this.photoError.set('An email is required.');
-      return;
-    }
-    if (!file) {
-      this.photoError.set('Please choose an image file.');
-      return;
-    }
-    this.uploadPhoto(email, file, () => {
-      this.photoForm.reset();
-      this.selectedFile.set(null);
-    });
-  }
-
-  uploadPhotoForEntry(entry: DirectoryEntry, event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    this.uploadPhoto(entry.email, file, () => {
-      input.value = '';
-    });
-  }
-
-  private uploadPhoto(email: string, file: File, onSuccess: () => void): void {
-    this.photoError.set(null);
-    this.uploadingEmail.set(email.toLowerCase());
-    this.photoService.upload(email, file).subscribe({
-      next: () => {
-        this.uploadingEmail.set(null);
-        onSuccess();
-        this.loadDirectory();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.uploadingEmail.set(null);
-        this.photoError.set(err.error?.message ?? 'Unable to upload photo.');
-      },
-    });
-  }
-
-  deletePhoto(entry: DirectoryEntry): void {
-    this.photoError.set(null);
-    this.uploadingEmail.set(entry.email.toLowerCase());
-    this.photoService.remove(entry.email).subscribe({
-      next: () => {
-        this.uploadingEmail.set(null);
-        this.loadDirectory();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.uploadingEmail.set(null);
-        this.photoError.set(err.error?.message ?? 'Unable to delete photo.');
-      },
-    });
   }
 }

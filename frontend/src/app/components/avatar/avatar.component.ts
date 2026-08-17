@@ -1,5 +1,5 @@
 import { Component, Input, OnChanges } from '@angular/core';
-import { PhotoService } from '../../services/photo.service';
+import { AvatarService } from '../../services/avatar.service';
 
 @Component({
   selector: 'app-avatar',
@@ -14,14 +14,14 @@ export class AvatarComponent implements OnChanges {
 
   imgFailed = false;
 
-  constructor(private readonly photoService: PhotoService) {}
+  constructor(private readonly avatarService: AvatarService) {}
 
   ngOnChanges(): void {
     this.imgFailed = false;
   }
 
   get photoUrl(): string | null {
-    return this.photoService.photoUrl(this.email);
+    return this.avatarService.avatarUrl(this.email);
   }
 
   get initials(): string {
