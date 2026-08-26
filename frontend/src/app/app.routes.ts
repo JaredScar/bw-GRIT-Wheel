@@ -43,7 +43,7 @@ export const routes: Routes = [
   //     ),
   // },
   {
-    path: 'people/:name',
+    path: 'people/:email',
     canActivate: [authGuard],
     loadComponent: () =>
       import('./pages/person-page/person-page.component').then((m) => m.PersonPageComponent),

@@ -1,5 +1,6 @@
 .round-panel,
 .new-round-card,
+.directory-card,
 .rounds-history {
   margin-bottom: 1.5rem;
 
@@ -169,6 +170,14 @@
 .status-closed {
   background: #f1f2f5;
   color: var(--bw-text-muted);
+}
+
+.directory-import {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
 }
 
 .rounds-history ul {

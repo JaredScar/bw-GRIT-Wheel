@@ -6,11 +6,13 @@ import { RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../components/avatar/avatar.component';
 import { WheelComponent, WheelSegment } from '../../components/wheel/wheel.component';
 import { AnalyticsSummary } from '../../models/analytics.model';
+import { DirectoryImportSummary } from '../../models/directory-person.model';
 import { GRIT_CATEGORY_LABELS, GritCategory } from '../../models/grit-category';
 import { Round, RoundStatus, WheelEntry, WheelMode } from '../../models/round.model';
 import { AnalyticsService } from '../../services/analytics.service';
 import { AuthService } from '../../services/auth.service';
 import { CelebrationService } from '../../services/celebration.service';
+import { DirectoryService } from '../../services/directory.service';
 import { RoundService } from '../../services/round.service';
 import { WinnerCardService } from '../../services/winner-card.service';
 
@@ -33,6 +35,7 @@ export class AdminPageComponent implements OnInit {
   private readonly celebrationService = inject(CelebrationService);
   private readonly winnerCardService = inject(WinnerCardService);
   private readonly analyticsService = inject(AnalyticsService);
+  private readonly directoryService = inject(DirectoryService);
 
   readonly categoryLabels = GRIT_CATEGORY_LABELS;
 
@@ -58,6 +61,12 @@ export class AdminPageComponent implements OnInit {
   readonly analytics = signal<AnalyticsSummary | null>(null);
   readonly loadingAnalytics = signal(false);
 
+  readonly directoryCount = signal(0);
+  readonly selectedCsvFile = signal<File | null>(null);
+  readonly importingDirectory = signal(false);
+  readonly directoryImportError = signal<string | null>(null);
+  readonly directoryImportSummary = signal<DirectoryImportSummary | null>(null);
+
   get segments(): WheelSegment[] {
     return this.wheelEntries().map((e) => ({
       label: e.nomineeName,
@@ -70,7 +79,54 @@ export class AdminPageComponent implements OnInit {
     if (this.authService.isAdmin()) {
       this.loadEverything();
       this.loadAnalytics();
+      this.loadDirectoryCount();
     }
+  }
+
+  loadDirectoryCount(): void {
+    this.directoryService.listAll().subscribe({
+      next: (people) => this.directoryCount.set(people.length),
+      error: () => {
+        // Non-critical for this card; the import button still works either way.
+      },
+    });
+  }
+
+  onDirectoryFileSelected(files: FileList | null): void {
+    this.directoryImportError.set(null);
+    this.directoryImportSummary.set(null);
+    this.selectedCsvFile.set(files?.[0] ?? null);
+  }
+
+  importDirectory(fileInput: HTMLInputElement): void {
+    const file = this.selectedCsvFile();
+    if (!file || this.importingDirectory()) return;
+
+    this.directoryImportError.set(null);
+    this.directoryImportSummary.set(null);
+    this.importingDirectory.set(true);
+
+    file
+      .text()
+      .then((csv) =>
+        this.directoryService.importCsv(csv).subscribe({
+          next: (summary) => {
+            this.importingDirectory.set(false);
+            this.directoryImportSummary.set(summary);
+            this.selectedCsvFile.set(null);
+            fileInput.value = '';
+            this.loadDirectoryCount();
+          },
+          error: (err: HttpErrorResponse) => {
+            this.importingDirectory.set(false);
+            this.directoryImportError.set(err.error?.message ?? 'Unable to import that CSV file.');
+          },
+        }),
+      )
+      .catch(() => {
+        this.importingDirectory.set(false);
+        this.directoryImportError.set('Unable to read that file.');
+      });
   }
 
   loadEverything(): void {
@@ -138,7 +194,7 @@ export class AdminPageComponent implements OnInit {
       next: (result) => {
         this.wheelEntries.set(result.entries);
         const index = result.entries.findIndex(
-          (e) => e.nomineeName === result.winner.nomineeName,
+          (e) => e.nomineeEmail === result.winner.nomineeEmail,
         );
 
         setTimeout(() => {
@@ -161,14 +217,14 @@ export class AdminPageComponent implements OnInit {
     });
   }
 
-  async shareWinnerCard(name: string): Promise<void> {
+  async shareWinnerCard(name: string, email: string): Promise<void> {
     const round = this.currentRound();
     if (!round) return;
 
     this.cardError.set(null);
     this.sharingCard.set(true);
     try {
-      await this.winnerCardService.shareOrDownload({ name, roundTitle: round.title });
+      await this.winnerCardService.shareOrDownload({ name, email, roundTitle: round.title });
     } catch {
       this.cardError.set('Unable to generate the winner card.');
     } finally {

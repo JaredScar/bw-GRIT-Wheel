@@ -6,7 +6,7 @@
   } @else {
     @if (profile(); as person) {
       <div class="page-header person-header">
-        <app-avatar [name]="person.name" [size]="72"></app-avatar>
+        <app-avatar [email]="person.email" [name]="person.name" [size]="72"></app-avatar>
         <div>
           <h1>{{ person.name }}</h1>
         </div>

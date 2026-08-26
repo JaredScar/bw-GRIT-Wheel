@@ -41,21 +41,37 @@
       <hr class="divider" />
 
       <div class="form-field">
-        <label for="nomineeName">First and last name of the person you're nominating</label>
-        <input
-          id="nomineeName"
-          type="text"
-          formControlName="nomineeName"
-          placeholder="Alex Rivera"
-          list="known-nominees"
-        />
-        <datalist id="known-nominees">
-          @for (person of knownPeople(); track person.name) {
-            <option [value]="person.name"></option>
+        <label for="nomineeName">Who are you nominating?</label>
+        @if (directoryLoadError()) {
+          <div class="banner banner-error">{{ directoryLoadError() }}</div>
+        }
+        <div class="combobox">
+          <input
+            id="nomineeName"
+            type="text"
+            autocomplete="off"
+            [value]="nomineeQuery()"
+            (input)="onNomineeInput($any($event.target).value)"
+            (focus)="onNomineeFocus()"
+            (blur)="onNomineeBlur()"
+            placeholder="Start typing a name..."
+          />
+          @if (showSuggestions() && nomineeMatches().length > 0) {
+            <ul class="combobox__list">
+              @for (person of nomineeMatches(); track person.email) {
+                <li>
+                  <button type="button" (mousedown)="selectNominee(person, $event)">{{ person.name }}</button>
+                </li>
+              }
+            </ul>
+          } @else if (showSuggestions() && nomineeQuery().trim()) {
+            <div class="combobox__empty">
+              No one found. Ask an admin to import the latest team roster if this person is missing.
+            </div>
           }
-        </datalist>
-        @if (form.get('nomineeName')?.invalid && form.get('nomineeName')?.touched) {
-          <span class="error">The nominee's name is required.</span>
+        </div>
+        @if (form.get('nomineeEmail')?.invalid && form.get('nomineeEmail')?.touched) {
+          <span class="error">Please select the nominee from the list.</span>
         }
       </div>
 

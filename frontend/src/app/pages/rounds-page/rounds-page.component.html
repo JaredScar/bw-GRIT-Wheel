@@ -28,8 +28,9 @@
 
           @if (round.status === RoundStatus.COMPLETED && round.winnerNomineeName) {
             <div class="winner-banner">
-              <a class="winner-banner__link" [routerLink]="['/people', round.winnerNomineeName]">
+              <a class="winner-banner__link" [routerLink]="['/people', round.winnerNomineeEmail]">
                 <app-avatar
+                  [email]="round.winnerNomineeEmail"
                   [name]="round.winnerNomineeName"
                   [size]="36"
                 ></app-avatar>

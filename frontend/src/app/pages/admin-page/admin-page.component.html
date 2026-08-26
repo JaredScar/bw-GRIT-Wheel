@@ -62,13 +62,13 @@
 
           @if (winner()) {
             <div class="winner-reveal">
-              <app-avatar [name]="winner()!.nomineeName" [size]="40"></app-avatar>
+              <app-avatar [email]="winner()!.nomineeEmail" [name]="winner()!.nomineeName" [size]="40"></app-avatar>
               <span>🏆 Winner: <strong>{{ winner()!.nomineeName }}</strong></span>
               <button
                 class="btn btn-secondary btn-small"
                 type="button"
                 [disabled]="sharingCard()"
-                (click)="shareWinnerCard(winner()!.nomineeName)"
+                (click)="shareWinnerCard(winner()!.nomineeName, winner()!.nomineeEmail)"
               >
                 📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
               </button>
@@ -80,6 +80,7 @@
         } @else if (currentRound()!.winnerNomineeName) {
           <div class="winner-reveal">
             <app-avatar
+              [email]="currentRound()!.winnerNomineeEmail"
               [name]="currentRound()!.winnerNomineeName"
               [size]="40"
             ></app-avatar>
@@ -91,7 +92,7 @@
               class="btn btn-secondary btn-small"
               type="button"
               [disabled]="sharingCard()"
-              (click)="shareWinnerCard(currentRound()!.winnerNomineeName!)"
+              (click)="shareWinnerCard(currentRound()!.winnerNomineeName!, currentRound()!.winnerNomineeEmail!)"
             >
               📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
             </button>
@@ -129,6 +130,43 @@
           {{ creatingRound() ? 'Creating...' : 'Create new round' }}
         </button>
       </form>
+    </div>
+
+    <div class="card directory-card">
+      <h2>Nominee directory</h2>
+      <p class="hint">
+        The nominate form only lets people pick from this roster. Import a CSV export of your
+        Slack workspace's member list (Active, non-bot, &#64;bitwarden.com accounts are kept;
+        everything else is skipped) to add new hires or refresh names.
+      </p>
+      <p class="hint"><strong>{{ directoryCount() }}</strong> {{ directoryCount() === 1 ? 'person' : 'people' }} currently nominate-able.</p>
+
+      @if (directoryImportError()) {
+        <div class="banner banner-error">{{ directoryImportError() }}</div>
+      }
+      @if (directoryImportSummary(); as summary) {
+        <div class="banner banner-success">
+          Imported {{ summary.imported }}, updated {{ summary.updated }}, skipped {{ summary.skipped }}
+          (of {{ summary.totalRows }} rows).
+        </div>
+      }
+
+      <div class="directory-import">
+        <input
+          #csvInput
+          type="file"
+          accept=".csv,text/csv"
+          (change)="onDirectoryFileSelected($any($event.target).files)"
+        />
+        <button
+          class="btn btn-primary"
+          type="button"
+          [disabled]="!selectedCsvFile() || importingDirectory()"
+          (click)="importDirectory(csvInput)"
+        >
+          {{ importingDirectory() ? 'Importing...' : 'Import CSV' }}
+        </button>
+      </div>
     </div>
 
     <div class="card rounds-history">

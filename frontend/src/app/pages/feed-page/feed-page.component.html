@@ -66,8 +66,8 @@
             </div>
             <span class="nomination-card__date">{{ nomination.createdAt | date: 'MMM d, y' }}</span>
           </div>
-          <a class="nomination-card__nominee" [routerLink]="['/people', nomination.nomineeName]">
-            <app-avatar [name]="nomination.nomineeName" [size]="48"></app-avatar>
+          <a class="nomination-card__nominee" [routerLink]="['/people', nomination.nomineeEmail]">
+            <app-avatar [email]="nomination.nomineeEmail" [name]="nomination.nomineeName" [size]="48"></app-avatar>
             <h3>{{ nomination.nomineeName }}</h3>
           </a>
           <p class="nomination-card__reason">{{ nomination.reason }}</p>

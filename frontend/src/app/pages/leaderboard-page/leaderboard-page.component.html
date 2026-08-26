@@ -17,11 +17,11 @@
           <p class="leaderboard-empty">No nominations yet.</p>
         } @else {
           <ol class="leaderboard-list">
-            @for (entry of board.topNominated; track entry.name; let i = $index) {
+            @for (entry of board.topNominated; track entry.email; let i = $index) {
               <li>
                 <span class="rank">{{ i + 1 }}</span>
-                <app-avatar [name]="entry.name" [size]="32"></app-avatar>
-                <a class="leaderboard-name" [routerLink]="['/people', entry.name]">{{ entry.name }}</a>
+                <app-avatar [email]="entry.email" [name]="entry.name" [size]="32"></app-avatar>
+                <a class="leaderboard-name" [routerLink]="['/people', entry.email]">{{ entry.name }}</a>
                 <span class="leaderboard-value">{{ entry.value }}</span>
               </li>
             }
@@ -35,11 +35,11 @@
           <p class="leaderboard-empty">No one's been agreed with yet — go react to a nomination!</p>
         } @else {
           <ol class="leaderboard-list">
-            @for (entry of board.topAgreed; track entry.name; let i = $index) {
+            @for (entry of board.topAgreed; track entry.email; let i = $index) {
               <li>
                 <span class="rank">{{ i + 1 }}</span>
-                <app-avatar [name]="entry.name" [size]="32"></app-avatar>
-                <a class="leaderboard-name" [routerLink]="['/people', entry.name]">{{ entry.name }}</a>
+                <app-avatar [email]="entry.email" [name]="entry.name" [size]="32"></app-avatar>
+                <a class="leaderboard-name" [routerLink]="['/people', entry.email]">{{ entry.name }}</a>
                 <span class="leaderboard-value">{{ entry.value }}</span>
               </li>
             }
@@ -54,10 +54,10 @@
           <p class="leaderboard-empty">No public nominators yet.</p>
         } @else {
           <ol class="leaderboard-list">
-            @for (entry of board.topNominators; track entry.name; let i = $index) {
+            @for (entry of board.topNominators; track entry.email; let i = $index) {
               <li>
                 <span class="rank">{{ i + 1 }}</span>
-                <app-avatar [name]="entry.name" [size]="32"></app-avatar>
+                <app-avatar [email]="entry.email" [name]="entry.name" [size]="32"></app-avatar>
                 <span class="leaderboard-name">{{ entry.name }}</span>
                 <span class="leaderboard-value">{{ entry.value }}</span>
               </li>
@@ -77,8 +77,8 @@
                 <span class="badge" [class]="badgeClass(champion.category)">
                   {{ categoryLabels[champion.category] }}
                 </span>
-                <app-avatar [name]="champion.name" [size]="28"></app-avatar>
-                <a class="leaderboard-name" [routerLink]="['/people', champion.name]">{{ champion.name }}</a>
+                <app-avatar [email]="champion.email" [name]="champion.name" [size]="28"></app-avatar>
+                <a class="leaderboard-name" [routerLink]="['/people', champion.email]">{{ champion.name }}</a>
                 <span class="leaderboard-value">{{ champion.count }}</span>
               </li>
             }

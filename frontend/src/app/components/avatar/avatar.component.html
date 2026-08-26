@@ -4,7 +4,7 @@
     [style.width.px]="size"
     [style.height.px]="size"
     [src]="photoUrl"
-    [alt]="name || 'Photo'"
+    [alt]="name || email || 'Photo'"
     (error)="onError()"
   />
 } @else {
