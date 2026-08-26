@@ -3,7 +3,6 @@ import { AvatarService } from './avatar.service';
 
 export interface WinnerCardParams {
   name: string;
-  email: string;
   roundTitle: string;
 }
 
@@ -48,7 +47,7 @@ export class WinnerCardService {
     ctx.fillText('GRIT Award', 60, 100);
 
     const avatarX = CARD_WIDTH / 2;
-    const image = await this.tryLoadImage(this.avatarService.avatarUrl(params.email));
+    const image = await this.tryLoadImage(this.avatarService.avatarUrl(params.name));
 
     ctx.save();
     ctx.beginPath();

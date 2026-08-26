@@ -48,15 +48,16 @@ export class AnalyticsService {
     ]);
 
     const [categoryRows, uniqueNomineesRow, uniqueNominatorsRow, byRoundRows] = await Promise.all([
-      this.nominationsRepository
-        .createQueryBuilder('n')
-        .select('n.gritCategory', 'category')
+      this.nominationsRepository.manager
+        .createQueryBuilder()
+        .select('category')
         .addSelect('COUNT(*)', 'count')
-        .groupBy('n.gritCategory')
+        .from((qb) => qb.select('UNNEST(n."gritCategories")', 'category').from(Nomination, 'n'), 'categories')
+        .groupBy('category')
         .getRawMany<{ category: string; count: string }>(),
       this.nominationsRepository
         .createQueryBuilder('n')
-        .select('COUNT(DISTINCT n.nomineeEmail)', 'count')
+        .select('COUNT(DISTINCT LOWER(TRIM(n.nomineeName)))', 'count')
         .getRawOne<{ count: string }>(),
       this.nominationsRepository
         .createQueryBuilder('n')

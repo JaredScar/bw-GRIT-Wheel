@@ -1,6 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
+import {
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
   GRIT_CATEGORIES,
@@ -13,11 +19,10 @@ import { AuthService } from '../../services/auth.service';
 import { NominationService } from '../../services/nomination.service';
 import { PeopleService } from '../../services/people.service';
 
-function bitwardenEmailValidator(): ValidatorFn {
-  const pattern = /^[a-zA-Z0-9._%+-]+@bitwarden\.com$/i;
+function minSelectionValidator(min: number): ValidatorFn {
   return (control): ValidationErrors | null => {
-    if (!control.value) return null;
-    return pattern.test(control.value.trim()) ? null : { bitwardenEmail: true };
+    const value = (control.value as unknown[] | null) ?? [];
+    return value.length >= min ? null : { minSelection: true };
   };
 }
 
@@ -47,8 +52,7 @@ export class NominatePageComponent implements OnInit {
     nominatorName: ['', [Validators.required, Validators.maxLength(120)]],
     isAnonymous: [false],
     nomineeName: ['', [Validators.required, Validators.maxLength(120)]],
-    nomineeEmail: ['', [Validators.required, bitwardenEmailValidator()]],
-    gritCategory: ['' as GritCategory | '', [Validators.required]],
+    gritCategories: this.fb.control<GritCategory[]>([], [minSelectionValidator(1)]),
     reason: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(2000)]],
   });
 
@@ -61,11 +65,16 @@ export class NominatePageComponent implements OnInit {
     });
   }
 
-  onNomineeEmailChange(value: string): void {
-    const match = this.knownPeople().find((p) => p.email.toLowerCase() === value.trim().toLowerCase());
-    if (match && !this.form.get('nomineeName')?.value) {
-      this.form.patchValue({ nomineeName: match.name });
-    }
+  isCategorySelected(category: GritCategory): boolean {
+    return (this.form.get('gritCategories')?.value ?? []).includes(category);
+  }
+
+  toggleCategory(category: GritCategory, checked: boolean): void {
+    const control = this.form.get('gritCategories')!;
+    const current = (control.value as GritCategory[]) ?? [];
+    const next = checked ? [...current, category] : current.filter((c) => c !== category);
+    control.setValue(next);
+    control.markAsTouched();
   }
 
   submit(): void {
@@ -83,15 +92,14 @@ export class NominatePageComponent implements OnInit {
         nominatorName: value.nominatorName!.trim(),
         isAnonymous: !!value.isAnonymous,
         nomineeName: value.nomineeName!.trim(),
-        nomineeEmail: value.nomineeEmail!.trim(),
-        gritCategory: value.gritCategory as GritCategory,
+        gritCategories: value.gritCategories!,
         reason: value.reason!.trim(),
       })
       .subscribe({
         next: () => {
           this.submitting.set(false);
           this.submitted.set(true);
-          this.form.reset({ isAnonymous: false });
+          this.form.reset({ isAnonymous: false, gritCategories: [] });
         },
         error: (err: HttpErrorResponse) => {
           this.submitting.set(false);
@@ -105,10 +113,5 @@ export class NominatePageComponent implements OnInit {
 
   submitAnother(): void {
     this.submitted.set(false);
-  }
-
-  get selectedCategoryDescription(): string | null {
-    const category = this.form.get('gritCategory')?.value as GritCategory | '' | null;
-    return category ? this.categoryDescriptions[category] : null;
   }
 }

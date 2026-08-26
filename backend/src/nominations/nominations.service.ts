@@ -8,15 +8,12 @@ import { CreateNominationDto } from './dto/create-nomination.dto';
 import { NominationUpvote } from './nomination-upvote.entity';
 import { Nomination } from './nomination.entity';
 
-export type NominationSort = 'newest' | 'trending';
-
 export interface PublicNomination {
   id: string;
   nominatorName: string | null;
   isAnonymous: boolean;
   nomineeName: string;
-  nomineeEmail: string;
-  gritCategory: GritCategory;
+  gritCategories: GritCategory[];
   reason: string;
   roundId: string;
   createdAt: Date;
@@ -49,8 +46,7 @@ export class NominationsService {
       nominatorEmail: nominatorEmail.trim().toLowerCase(),
       isAnonymous: dto.isAnonymous ?? false,
       nomineeName: dto.nomineeName.trim(),
-      nomineeEmail: dto.nomineeEmail.trim().toLowerCase(),
-      gritCategory: dto.gritCategory,
+      gritCategories: dto.gritCategories,
       reason: dto.reason.trim(),
       roundId: currentRound.id,
     });
@@ -59,7 +55,7 @@ export class NominationsService {
 
     void this.slackNotificationService.notifyNewNomination({
       nomineeName: saved.nomineeName,
-      gritCategory: saved.gritCategory,
+      gritCategories: saved.gritCategories,
       reason: saved.reason,
       isAnonymous: saved.isAnonymous,
       nominatorName: saved.nominatorName,
@@ -71,19 +67,25 @@ export class NominationsService {
   async findAll(filters: {
     roundId?: string;
     gritCategory?: GritCategory;
-    nomineeEmail?: string;
-    sort?: NominationSort;
+    nomineeName?: string;
     viewerEmail?: string;
   }): Promise<PublicNomination[]> {
-    const where: Record<string, unknown> = {};
-    if (filters.roundId) where.roundId = filters.roundId;
-    if (filters.gritCategory) where.gritCategory = filters.gritCategory;
-    if (filters.nomineeEmail) where.nomineeEmail = filters.nomineeEmail.trim().toLowerCase();
+    const qb = this.nominationsRepository.createQueryBuilder('n');
 
-    const nominations = await this.nominationsRepository.find({
-      where,
-      order: { createdAt: 'DESC' },
-    });
+    if (filters.roundId) {
+      qb.andWhere('n.roundId = :roundId', { roundId: filters.roundId });
+    }
+    if (filters.gritCategory) {
+      qb.andWhere(':category = ANY(n.gritCategories)', { category: filters.gritCategory });
+    }
+    if (filters.nomineeName) {
+      qb.andWhere('LOWER(TRIM(n.nomineeName)) = LOWER(TRIM(:nomineeName))', {
+        nomineeName: filters.nomineeName,
+      });
+    }
+    qb.orderBy('n.createdAt', 'DESC');
+
+    const nominations = await qb.getMany();
 
     if (nominations.length === 0) {
       return [];
@@ -96,7 +98,7 @@ export class NominationsService {
       : new Set<string>();
     const currentRound = await this.roundsService.getCurrentOpenRound();
 
-    let result = nominations.map((n) =>
+    return nominations.map((n) =>
       this.toPublic(
         n,
         countMap.get(n.id) ?? 0,
@@ -104,14 +106,6 @@ export class NominationsService {
         currentRound?.id === n.roundId,
       ),
     );
-
-    if (filters.sort === 'trending') {
-      result = [...result].sort(
-        (a, b) => b.upvoteCount - a.upvoteCount || b.createdAt.getTime() - a.createdAt.getTime(),
-      );
-    }
-
-    return result;
   }
 
   async findOnePublic(id: string, viewerEmail?: string): Promise<PublicNomination> {
@@ -202,8 +196,7 @@ export class NominationsService {
       nominatorName: nomination.isAnonymous ? null : nomination.nominatorName,
       isAnonymous: nomination.isAnonymous,
       nomineeName: nomination.nomineeName,
-      nomineeEmail: nomination.nomineeEmail,
-      gritCategory: nomination.gritCategory,
+      gritCategories: nomination.gritCategories,
       reason: nomination.reason,
       roundId: nomination.roundId,
       createdAt: nomination.createdAt,

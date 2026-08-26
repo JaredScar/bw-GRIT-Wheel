@@ -138,7 +138,7 @@ export class AdminPageComponent implements OnInit {
       next: (result) => {
         this.wheelEntries.set(result.entries);
         const index = result.entries.findIndex(
-          (e) => e.nomineeEmail === result.winner.nomineeEmail,
+          (e) => e.nomineeName === result.winner.nomineeName,
         );
 
         setTimeout(() => {
@@ -161,14 +161,14 @@ export class AdminPageComponent implements OnInit {
     });
   }
 
-  async shareWinnerCard(name: string, email: string): Promise<void> {
+  async shareWinnerCard(name: string): Promise<void> {
     const round = this.currentRound();
     if (!round) return;
 
     this.cardError.set(null);
     this.sharingCard.set(true);
     try {
-      await this.winnerCardService.shareOrDownload({ name, email, roundTitle: round.title });
+      await this.winnerCardService.shareOrDownload({ name, roundTitle: round.title });
     } catch {
       this.cardError.set('Unable to generate the winner card.');
     } finally {

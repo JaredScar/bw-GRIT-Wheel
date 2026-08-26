@@ -8,7 +8,6 @@ import { AvatarService } from '../../services/avatar.service';
   styleUrl: './avatar.component.scss',
 })
 export class AvatarComponent implements OnChanges {
-  @Input() email: string | null | undefined = null;
   @Input() name: string | null | undefined = '';
   @Input() size = 44;
 
@@ -21,11 +20,11 @@ export class AvatarComponent implements OnChanges {
   }
 
   get photoUrl(): string | null {
-    return this.avatarService.avatarUrl(this.email);
+    return this.avatarService.avatarUrl(this.name);
   }
 
   get initials(): string {
-    const source = (this.name || this.email || '').trim();
+    const source = (this.name || '').trim();
     if (!source) return '?';
     const parts = source.split(/\s+/).filter(Boolean);
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();

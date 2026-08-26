@@ -17,8 +17,8 @@ export class PeopleController {
 
   // NOTE: this catch-all param route must stay last so it doesn't shadow
   // the more specific routes above (e.g. `leaderboard`).
-  @Get(':email')
-  getProfile(@Param('email') email: string) {
-    return this.peopleService.getProfile(email);
+  @Get(':name')
+  getProfile(@Param('name') name: string) {
+    return this.peopleService.getProfile(name);
   }
 }

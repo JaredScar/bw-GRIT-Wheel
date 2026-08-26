@@ -5,7 +5,6 @@ import { GritCategory } from '../models/grit-category';
 import {
   CreateNominationPayload,
   Nomination,
-  NominationSort,
   ToggleUpvoteResult,
 } from '../models/nomination.model';
 
@@ -23,13 +22,11 @@ export class NominationService {
     filters: {
       roundId?: string;
       gritCategory?: GritCategory;
-      sort?: NominationSort;
     } = {},
   ): Observable<Nomination[]> {
     let params = new HttpParams();
     if (filters.roundId) params = params.set('roundId', filters.roundId);
     if (filters.gritCategory) params = params.set('gritCategory', filters.gritCategory);
-    if (filters.sort) params = params.set('sort', filters.sort);
     return this.http.get<Nomination[]>(this.baseUrl, { params });
   }
 

@@ -13,8 +13,8 @@ export class PeopleService {
     return this.http.get<PersonSummary[]>(this.baseUrl);
   }
 
-  getProfile(email: string): Observable<PersonProfile> {
-    return this.http.get<PersonProfile>(`${this.baseUrl}/${encodeURIComponent(email.trim().toLowerCase())}`);
+  getProfile(name: string): Observable<PersonProfile> {
+    return this.http.get<PersonProfile>(`${this.baseUrl}/${encodeURIComponent(name.trim())}`);
   }
 
   getLeaderboard(): Observable<Leaderboard> {

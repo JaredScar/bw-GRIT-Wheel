@@ -30,22 +30,23 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
   Workspace domain) is turned away and no account is created for it. Once you're
   through, you get a 30-day session, so you won't need to sign in again on the same
   device for a while.
-- **Anyone signed in** can submit a nomination for someone else (the nominee also
-  needs a `@bitwarden.com` email). The nominator can choose to submit anonymously —
-  their name is hidden from the public view (their verified identity is still
-  recorded internally), but the nominee is always shown.
+- **Anyone signed in** can submit a nomination for someone else by name (no email
+  required for the nominee — just enough to identify who's being recognized). The
+  nominator can choose to submit anonymously — their name is hidden from the public
+  view (their verified identity is still recorded internally), but the nominee is
+  always shown. A nomination can call out more than one GRIT value at once.
 - **Every nomination is public immediately** — a feed shows every nomination ever
   submitted (filterable by GRIT category or by round, and searchable by nominee,
   nominator, or reason text), regardless of who wins.
 - **Agree with a nomination** ("+1", Reddit-style): anyone signed in can react to a
   nomination to show they agree — no extra prompt, since you're already
-  authenticated. The feed can be sorted by **Newest** or **🔥 Trending** (most
-  agreed-with first) to surface the most popular nominations. Reactions only work on
-  nominations in the **current, still-open round** — once a round is closed, its
-  nomination tallies are locked in.
-- **Profile pages** (`/people/:email`): click any nominee's name/photo to see a
+  authenticated. Reactions only work on nominations in the **current, still-open
+  round** — once a round is closed, its nomination tallies are locked in.
+- **Profile pages** (`/people/:name`): click any nominee's name/photo to see a
   "wall of fame" — every nomination they've ever received, their total agree count,
-  a breakdown by GRIT category, and any rounds they've won.
+  a breakdown by GRIT category, and any rounds they've won. Nominees are matched by
+  name (case-insensitive), so two different people who happen to share an exact name
+  would show up as one profile.
 - **Leaderboard** (`/leaderboard`): a fun, all-time view of the most-nominated people,
   the biggest crowd favorites (most agrees), the top public nominators, and a
   "champion" for each GRIT category.
@@ -476,17 +477,16 @@ deploy appears to succeed while the VM quietly keeps running the old images.
 - **Sign in**: `/login` — click **Continue with Google** and pick your
   `@bitwarden.com` account. You'll stay signed in for 30 days on that device; use
   **Log out** in the header to end your session early.
-- **Nominate**: once signed in, go to `/nominate`, fill out the form, and submit. The
-  nominee's email must end in `@bitwarden.com`; your own identity comes from your
-  session automatically.
+- **Nominate**: once signed in, go to `/nominate`, fill out the form, and submit. You
+  only need the nominee's name (no email); check every GRIT value that applies. Your
+  own identity comes from your session automatically.
 - **Nominations**: `/nominations` shows every nomination publicly, filterable by GRIT
-  category, searchable, and sortable by Newest or Trending. Click the 👍 button on a
-  nomination from the current round to agree with it. Click a nominee's name/photo to
-  see their full profile.
+  category and searchable. Click the 👍 button on a nomination from the current round
+  to agree with it. Click a nominee's name/photo to see their full profile.
 - **Leaderboard**: `/leaderboard` — most-nominated people, crowd favorites, top
   nominators, and category champions.
-- **Rounds & Winners**: `/rounds` lists every round, its status, and the winner once
-  the wheel has been spun.
+- **GRIT Hall of Names**: `/rounds` lists every round, its status, and the winner
+  once the wheel has been spun.
 - **Admin**: `/admin` — only visible/usable if you hold the `admin` role. From there
   you can:
   - Start a new round for the upcoming all-hands

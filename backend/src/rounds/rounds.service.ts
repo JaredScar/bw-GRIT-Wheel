@@ -8,7 +8,6 @@ import { Round, RoundStatus, WheelMode } from './round.entity';
 
 export interface WheelEntry {
   nomineeName: string;
-  nomineeEmail: string;
   nominationIds: string[];
 }
 
@@ -88,12 +87,13 @@ export class RoundsService {
     return saved;
   }
 
-  async findWinsByEmail(email: string): Promise<Round[]> {
-    const normalizedEmail = email.trim().toLowerCase();
-    return this.roundsRepository.find({
-      where: { winnerNomineeEmail: normalizedEmail },
-      order: { spunAt: 'DESC' },
-    });
+  async findWinsByName(name: string): Promise<Round[]> {
+    const normalizedName = name.trim().toLowerCase();
+    return this.roundsRepository
+      .createQueryBuilder('round')
+      .where('LOWER(TRIM(round.winnerNomineeName)) = :normalizedName', { normalizedName })
+      .orderBy('round.spunAt', 'DESC')
+      .getMany();
   }
 
   async getWheelEntries(roundId: string): Promise<WheelEntry[]> {
@@ -101,14 +101,13 @@ export class RoundsService {
 
     const byNominee = new Map<string, WheelEntry>();
     for (const nomination of nominations) {
-      const key = nomination.nomineeEmail.toLowerCase();
+      const key = nomination.nomineeName.trim().toLowerCase();
       const existing = byNominee.get(key);
       if (existing) {
         existing.nominationIds.push(nomination.id);
       } else {
         byNominee.set(key, {
           nomineeName: nomination.nomineeName,
-          nomineeEmail: nomination.nomineeEmail,
           nominationIds: [nomination.id],
         });
       }
@@ -133,7 +132,6 @@ export class RoundsService {
 
     round.status = RoundStatus.COMPLETED;
     round.winnerNomineeName = winner.nomineeName;
-    round.winnerNomineeEmail = winner.nomineeEmail;
     round.winnerNominationId = winner.nominationIds[0];
     round.wheelMode = weighted ? WheelMode.WEIGHTED : WheelMode.EQUAL;
     round.spunAt = new Date();

@@ -39,12 +39,11 @@ export class RoundsPageComponent implements OnInit {
   }
 
   async shareCard(round: Round): Promise<void> {
-    if (!round.winnerNomineeName || !round.winnerNomineeEmail) return;
+    if (!round.winnerNomineeName) return;
     this.sharingCard.set(round.id);
     try {
       await this.winnerCardService.shareOrDownload({
         name: round.winnerNomineeName,
-        email: round.winnerNomineeEmail,
         roundTitle: round.title,
       });
     } finally {

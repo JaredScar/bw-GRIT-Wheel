@@ -8,7 +8,6 @@ import { NominationsService, PublicNomination } from '../nominations/nominations
 import { RoundsService } from '../rounds/rounds.service';
 
 export interface PersonSummary {
-  email: string;
   name: string;
   nominationCount: number;
 }
@@ -20,7 +19,6 @@ export interface PersonWin {
 }
 
 export interface PersonProfile {
-  email: string;
   name: string;
   totalNominations: number;
   totalUpvotes: number;
@@ -30,14 +28,12 @@ export interface PersonProfile {
 }
 
 export interface LeaderboardEntry {
-  email: string;
   name: string;
   value: number;
 }
 
 export interface CategoryChampion {
   category: GritCategory;
-  email: string;
   name: string;
   count: number;
 }
@@ -65,37 +61,37 @@ export class PeopleService {
   async listPeople(): Promise<PersonSummary[]> {
     const rows = await this.nominationsRepository
       .createQueryBuilder('n')
-      .select('n.nomineeEmail', 'email')
-      .addSelect('MAX(n.nomineeName)', 'name')
+      .select('MAX(n.nomineeName)', 'name')
       .addSelect('COUNT(*)', 'count')
-      .groupBy('n.nomineeEmail')
+      .groupBy('LOWER(TRIM(n.nomineeName))')
       .orderBy('name', 'ASC')
-      .getRawMany<{ email: string; name: string; count: string }>();
+      .getRawMany<{ name: string; count: string }>();
 
     return rows.map((row) => ({
-      email: row.email,
       name: row.name,
       nominationCount: parseInt(row.count, 10),
     }));
   }
 
-  async getProfile(email: string): Promise<PersonProfile> {
-    const normalizedEmail = email.trim().toLowerCase();
-    const nominations = await this.nominationsService.findAll({ nomineeEmail: normalizedEmail });
+  async getProfile(name: string): Promise<PersonProfile> {
+    const normalizedName = name.trim();
+    const nominations = await this.nominationsService.findAll({ nomineeName: normalizedName });
 
-    const name = nominations[0]?.nomineeName ?? normalizedEmail;
+    const displayName = nominations[0]?.nomineeName ?? normalizedName;
     const totalUpvotes = nominations.reduce((sum, n) => sum + n.upvoteCount, 0);
 
     const categoryCounts = new Map<GritCategory, number>();
     for (const nomination of nominations) {
-      categoryCounts.set(nomination.gritCategory, (categoryCounts.get(nomination.gritCategory) ?? 0) + 1);
+      for (const category of nomination.gritCategories) {
+        categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+      }
     }
     const categoryBreakdown = Array.from(categoryCounts.entries()).map(([category, count]) => ({
       category,
       count,
     }));
 
-    const winningRounds = await this.roundsService.findWinsByEmail(normalizedEmail);
+    const winningRounds = await this.roundsService.findWinsByName(displayName);
     const wins = winningRounds.map((round) => ({
       roundId: round.id,
       roundTitle: round.title,
@@ -103,8 +99,7 @@ export class PeopleService {
     }));
 
     return {
-      email: normalizedEmail,
-      name,
+      name: displayName,
       totalNominations: nominations.length,
       totalUpvotes,
       categoryBreakdown,
@@ -117,51 +112,45 @@ export class PeopleService {
     const [topNominatedRows, topAgreedRows, topNominatorRows, categoryChampions] = await Promise.all([
       this.nominationsRepository
         .createQueryBuilder('n')
-        .select('n.nomineeEmail', 'email')
-        .addSelect('MAX(n.nomineeName)', 'name')
+        .select('MAX(n.nomineeName)', 'name')
         .addSelect('COUNT(*)', 'count')
-        .groupBy('n.nomineeEmail')
+        .groupBy('LOWER(TRIM(n.nomineeName))')
         .orderBy('count', 'DESC')
         .limit(LEADERBOARD_LIMIT)
-        .getRawMany<{ email: string; name: string; count: string }>(),
+        .getRawMany<{ name: string; count: string }>(),
       this.nominationsRepository
         .createQueryBuilder('n')
         .leftJoin('n.upvotes', 'u')
-        .select('n.nomineeEmail', 'email')
-        .addSelect('MAX(n.nomineeName)', 'name')
+        .select('MAX(n.nomineeName)', 'name')
         .addSelect('COUNT(u.id)', 'totalUpvotes')
-        .groupBy('n.nomineeEmail')
+        .groupBy('LOWER(TRIM(n.nomineeName))')
         .orderBy('"totalUpvotes"', 'DESC')
         .limit(LEADERBOARD_LIMIT)
-        .getRawMany<{ email: string; name: string; totalUpvotes: string }>(),
+        .getRawMany<{ name: string; totalUpvotes: string }>(),
       this.nominationsRepository
         .createQueryBuilder('n')
-        .select('n.nominatorEmail', 'email')
-        .addSelect('MAX(n.nominatorName)', 'name')
+        .select('MAX(n.nominatorName)', 'name')
         .addSelect('COUNT(*)', 'count')
         .where('n.isAnonymous = false')
-        .groupBy('n.nominatorEmail')
+        .groupBy('LOWER(TRIM(n.nominatorEmail))')
         .orderBy('count', 'DESC')
         .limit(LEADERBOARD_LIMIT)
-        .getRawMany<{ email: string; name: string; count: string }>(),
+        .getRawMany<{ name: string; count: string }>(),
       this.getCategoryChampions(),
     ]);
 
     return {
       topNominated: topNominatedRows.map((row) => ({
-        email: row.email,
         name: row.name,
         value: parseInt(row.count, 10),
       })),
       topAgreed: topAgreedRows
         .map((row) => ({
-          email: row.email,
           name: row.name,
           value: parseInt(row.totalUpvotes, 10),
         }))
         .filter((entry) => entry.value > 0),
       topNominators: topNominatorRows.map((row) => ({
-        email: row.email,
         name: row.name,
         value: parseInt(row.count, 10),
       })),
@@ -175,19 +164,17 @@ export class PeopleService {
     for (const category of Object.values(GritCategory)) {
       const row = await this.nominationsRepository
         .createQueryBuilder('n')
-        .select('n.nomineeEmail', 'email')
-        .addSelect('MAX(n.nomineeName)', 'name')
+        .select('MAX(n.nomineeName)', 'name')
         .addSelect('COUNT(*)', 'count')
-        .where('n.gritCategory = :category', { category })
-        .groupBy('n.nomineeEmail')
+        .where(':category = ANY(n.gritCategories)', { category })
+        .groupBy('LOWER(TRIM(n.nomineeName))')
         .orderBy('count', 'DESC')
         .limit(1)
-        .getRawOne<{ email: string; name: string; count: string }>();
+        .getRawOne<{ name: string; count: string }>();
 
       if (row) {
         champions.push({
           category,
-          email: row.email,
           name: row.name,
           count: parseInt(row.count, 10),
         });

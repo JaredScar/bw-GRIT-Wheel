@@ -8,7 +8,7 @@ import {
   GRIT_CATEGORY_LABELS,
   GritCategory,
 } from '../../models/grit-category';
-import { Nomination, NominationSort } from '../../models/nomination.model';
+import { Nomination } from '../../models/nomination.model';
 import { NominationService } from '../../services/nomination.service';
 
 @Component({
@@ -27,7 +27,6 @@ export class FeedPageComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly selectedCategory = signal<GritCategory | 'ALL'>('ALL');
   readonly roundId = signal<string | null>(null);
-  readonly sort = signal<NominationSort>('newest');
   readonly searchTerm = signal('');
 
   readonly filteredNominations = computed(() => {
@@ -36,7 +35,7 @@ export class FeedPageComponent implements OnInit {
     let result = this.nominations();
 
     if (category !== 'ALL') {
-      result = result.filter((n) => n.gritCategory === category);
+      result = result.filter((n) => n.gritCategories.includes(category));
     }
 
     if (term) {
@@ -72,7 +71,7 @@ export class FeedPageComponent implements OnInit {
     this.loading.set(true);
     this.errorMessage.set(null);
     const roundId = this.roundId() ?? undefined;
-    this.nominationService.findAll({ roundId, sort: this.sort() }).subscribe({
+    this.nominationService.findAll({ roundId }).subscribe({
       next: (nominations) => {
         this.nominations.set(nominations);
         this.loading.set(false);
@@ -90,12 +89,6 @@ export class FeedPageComponent implements OnInit {
 
   selectCategory(category: GritCategory | 'ALL'): void {
     this.selectedCategory.set(category);
-  }
-
-  selectSort(sort: NominationSort): void {
-    if (this.sort() === sort) return;
-    this.sort.set(sort);
-    this.load();
   }
 
   setSearchTerm(value: string): void {

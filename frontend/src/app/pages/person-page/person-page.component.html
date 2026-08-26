@@ -6,10 +6,9 @@
   } @else {
     @if (profile(); as person) {
       <div class="page-header person-header">
-        <app-avatar [email]="person.email" [name]="person.name" [size]="72"></app-avatar>
+        <app-avatar [name]="person.name" [size]="72"></app-avatar>
         <div>
           <h1>{{ person.name }}</h1>
-          <p class="person-header__email">{{ person.email }}</p>
         </div>
       </div>
 
@@ -60,9 +59,13 @@
           @for (nomination of person.nominations; track nomination.id) {
             <article class="card nomination-card">
               <div class="nomination-card__header">
-                <span class="badge" [class]="badgeClass(nomination.gritCategory)">
-                  {{ categoryLabels[nomination.gritCategory] }}
-                </span>
+                <div class="nomination-card__badges">
+                  @for (category of nomination.gritCategories; track category) {
+                    <span class="badge" [class]="badgeClass(category)">
+                      {{ categoryLabels[category] }}
+                    </span>
+                  }
+                </div>
                 <span class="nomination-card__date">{{ nomination.createdAt | date: 'MMM d, y' }}</span>
               </div>
               <p class="nomination-card__reason">{{ nomination.reason }}</p>

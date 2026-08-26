@@ -13,9 +13,9 @@ import { RoundsService } from './rounds/rounds.service';
  * `npm run seed` (after `npm run build`) or `node dist/seed.js` inside the
  * backend container.
  *
- * All names, emails, and nomination text below are fictional placeholders —
- * replace them with your own organization's real history if you'd like, or
- * skip this script entirely and just start creating rounds from `/admin`.
+ * All names and nomination text below are fictional placeholders — replace
+ * them with your own organization's real history if you'd like, or skip this
+ * script entirely and just start creating rounds from `/admin`.
  *
  * Safe to re-run: rounds are matched/skipped by title.
  */
@@ -25,15 +25,14 @@ const ARCHIVE_NOMINATOR_EMAIL = 'grit-archive@bitwarden.com';
 
 interface SeedNomination {
   nomineeName: string;
-  nomineeEmail: string;
-  gritCategory: GritCategory;
+  gritCategories: GritCategory[];
   reason: string;
 }
 
 interface SeedRound {
   title: string;
   eventDate: string;
-  winnerEmail: string;
+  winnerName: string;
   nominations: SeedNomination[];
 }
 
@@ -43,12 +42,11 @@ const seedRounds: SeedRound[] = [
   {
     title: 'Example Round 1',
     eventDate: '2025-01-15',
-    winnerEmail: 'alex.rivera@bitwarden.com',
+    winnerName: 'Alex Rivera',
     nominations: [
       {
         nomineeName: 'Alex Rivera',
-        nomineeEmail: 'alex.rivera@bitwarden.com',
-        gritCategory: GritCategory.INNOVATION,
+        gritCategories: [GritCategory.INNOVATION],
         reason:
           'Alex proposed a creative solution to a long-standing bottleneck in our release process and volunteered to prototype it over a weekend. The idea is now part of how the whole team ships.',
       },
@@ -57,12 +55,11 @@ const seedRounds: SeedRound[] = [
   {
     title: 'Example Round 2',
     eventDate: '2025-02-12',
-    winnerEmail: 'jordan.kim@bitwarden.com',
+    winnerName: 'Jordan Kim',
     nominations: [
       {
         nomineeName: 'Jordan Kim',
-        nomineeEmail: 'jordan.kim@bitwarden.com',
-        gritCategory: GritCategory.RESPONSIBILITY,
+        gritCategories: [GritCategory.RESPONSIBILITY],
         reason:
           'Jordan owned a tricky customer-facing bug end to end, including the uncomfortable parts of communicating the impact and timeline, and saw it through to a real fix instead of a quick patch.',
       },
@@ -71,50 +68,37 @@ const seedRounds: SeedRound[] = [
   {
     title: 'Example Round 3',
     eventDate: '2025-03-19',
-    winnerEmail: 'sam.patel@bitwarden.com',
+    winnerName: 'Sam Patel',
     nominations: [
       {
         nomineeName: 'Sam Patel',
-        nomineeEmail: 'sam.patel@bitwarden.com',
-        gritCategory: GritCategory.GRIT,
-        reason: 'Sam kept pushing through a genuinely difficult migration project without losing momentum or morale for the rest of the team.',
-      },
-      {
-        nomineeName: 'Sam Patel',
-        nomineeEmail: 'sam.patel@bitwarden.com',
-        gritCategory: GritCategory.GRATITUDE,
-        reason: "Always the first to jump in and help teammates, and does it with a great attitude every time.",
+        gritCategories: [GritCategory.GRIT, GritCategory.GRATITUDE],
+        reason:
+          'Sam kept pushing through a genuinely difficult migration project without losing momentum or morale for the rest of the team, and was always the first to jump in and help teammates with a great attitude.',
       },
     ],
   },
   {
     title: 'Example Round 4',
     eventDate: '2025-04-16',
-    winnerEmail: 'morgan.chen@bitwarden.com',
+    winnerName: 'Morgan Chen',
     nominations: [
       {
         nomineeName: 'Morgan Chen',
-        nomineeEmail: 'morgan.chen@bitwarden.com',
-        gritCategory: GritCategory.TRUST,
-        reason: 'Morgan is transparent with stakeholders even when the news is bad, which makes everyone trust the whole team more.',
-      },
-      {
-        nomineeName: 'Morgan Chen',
-        nomineeEmail: 'morgan.chen@bitwarden.com',
-        gritCategory: GritCategory.GRIT,
-        reason: 'Showed real perseverance getting a stalled project unstuck after months of it being deprioritized.',
+        gritCategories: [GritCategory.TRUST, GritCategory.GRIT],
+        reason:
+          'Morgan is transparent with stakeholders even when the news is bad, and showed real perseverance getting a stalled project unstuck after months of it being deprioritized.',
       },
     ],
   },
   {
     title: 'Example Round 5',
     eventDate: '2025-05-14',
-    winnerEmail: 'taylor.nguyen@bitwarden.com',
+    winnerName: 'Taylor Nguyen',
     nominations: [
       {
         nomineeName: 'Taylor Nguyen',
-        nomineeEmail: 'taylor.nguyen@bitwarden.com',
-        gritCategory: GritCategory.RESPONSIBILITY,
+        gritCategories: [GritCategory.RESPONSIBILITY],
         reason:
           'Taylor took ownership of coordinating a cross-team project with several external vendors and kept everyone aligned through a chaotic timeline.',
       },
@@ -151,8 +135,7 @@ async function run(): Promise<void> {
           nominatorEmail: ARCHIVE_NOMINATOR_EMAIL,
           isAnonymous: true,
           nomineeName: nomination.nomineeName,
-          nomineeEmail: nomination.nomineeEmail,
-          gritCategory: nomination.gritCategory,
+          gritCategories: nomination.gritCategories,
           reason: nomination.reason,
           roundId: round.id,
         }),
@@ -161,9 +144,9 @@ async function run(): Promise<void> {
 
     const result = await roundsService.spinWheel(round.id);
 
-    if (result.winner.nomineeEmail.toLowerCase() !== seed.winnerEmail.toLowerCase()) {
+    if (result.winner.nomineeName.toLowerCase() !== seed.winnerName.toLowerCase()) {
       throw new Error(
-        `Unexpected winner for "${seed.title}": got ${result.winner.nomineeEmail}, expected ${seed.winnerEmail}`,
+        `Unexpected winner for "${seed.title}": got ${result.winner.nomineeName}, expected ${seed.winnerName}`,
       );
     }
 

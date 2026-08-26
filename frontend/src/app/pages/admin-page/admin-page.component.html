@@ -62,13 +62,13 @@
 
           @if (winner()) {
             <div class="winner-reveal">
-              <app-avatar [email]="winner()!.nomineeEmail" [name]="winner()!.nomineeName" [size]="40"></app-avatar>
+              <app-avatar [name]="winner()!.nomineeName" [size]="40"></app-avatar>
               <span>🏆 Winner: <strong>{{ winner()!.nomineeName }}</strong></span>
               <button
                 class="btn btn-secondary btn-small"
                 type="button"
                 [disabled]="sharingCard()"
-                (click)="shareWinnerCard(winner()!.nomineeName, winner()!.nomineeEmail)"
+                (click)="shareWinnerCard(winner()!.nomineeName)"
               >
                 📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
               </button>
@@ -80,7 +80,6 @@
         } @else if (currentRound()!.winnerNomineeName) {
           <div class="winner-reveal">
             <app-avatar
-              [email]="currentRound()!.winnerNomineeEmail"
               [name]="currentRound()!.winnerNomineeName"
               [size]="40"
             ></app-avatar>
@@ -92,7 +91,7 @@
               class="btn btn-secondary btn-small"
               type="button"
               [disabled]="sharingCard()"
-              (click)="shareWinnerCard(currentRound()!.winnerNomineeName!, currentRound()!.winnerNomineeEmail!)"
+              (click)="shareWinnerCard(currentRound()!.winnerNomineeName!)"
             >
               📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
             </button>

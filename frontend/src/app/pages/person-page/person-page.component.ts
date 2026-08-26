@@ -26,16 +26,16 @@ export class PersonPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
-      const email = params.get('email');
-      if (!email) return;
-      this.load(email);
+      const name = params.get('name');
+      if (!name) return;
+      this.load(name);
     });
   }
 
-  private load(email: string): void {
+  private load(name: string): void {
     this.loading.set(true);
     this.errorMessage.set(null);
-    this.peopleService.getProfile(email).subscribe({
+    this.peopleService.getProfile(name).subscribe({
       next: (profile) => {
         this.profile.set(profile);
         this.loading.set(false);

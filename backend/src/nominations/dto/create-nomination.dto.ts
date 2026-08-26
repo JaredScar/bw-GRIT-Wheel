@@ -1,4 +1,6 @@
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsEnum,
   IsNotEmpty,
@@ -7,7 +9,6 @@ import {
   MinLength,
 } from 'class-validator';
 import { GritCategory } from '../../common/grit-category.enum';
-import { IsBitwardenEmail } from '../../common/bitwarden-email.validator';
 
 export class CreateNominationDto {
   @IsNotEmpty({ message: 'Your name is required' })
@@ -22,11 +23,10 @@ export class CreateNominationDto {
   @MaxLength(120)
   nomineeName: string;
 
-  @IsBitwardenEmail()
-  nomineeEmail: string;
-
-  @IsEnum(GritCategory, { message: 'A valid GRIT category must be selected' })
-  gritCategory: GritCategory;
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Please select at least one GRIT value' })
+  @IsEnum(GritCategory, { each: true, message: 'A valid GRIT category must be selected' })
+  gritCategories: GritCategory[];
 
   @IsNotEmpty({ message: 'Please share why you are nominating this person' })
   @MinLength(10, { message: 'Please share a bit more detail (at least 10 characters)' })

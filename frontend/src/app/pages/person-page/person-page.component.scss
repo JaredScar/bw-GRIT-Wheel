@@ -6,12 +6,6 @@
   h1 {
     margin: 0;
   }
-
-  &__email {
-    margin: 0.2rem 0 0;
-    color: var(--bw-text-muted);
-    font-size: 0.9rem;
-  }
 }
 
 .stat-row {
@@ -84,6 +78,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
   }
 
   &__date {
