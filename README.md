@@ -30,11 +30,16 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
   Workspace domain) is turned away and no account is created for it. Once you're
   through, you get a 30-day session, so you won't need to sign in again on the same
   device for a while.
-- **Anyone signed in** can submit a nomination for someone else by name (no email
-  required for the nominee — just enough to identify who's being recognized). The
-  nominator can choose to submit anonymously — their name is hidden from the public
-  view (their verified identity is still recorded internally), but the nominee is
-  always shown. A nomination can call out more than one GRIT value at once.
+- **Anyone signed in** can submit a nomination for someone else by picking them from
+  a searchable **nominee directory** — there's no free-text name or email field on the
+  form, so there's nothing to typo or mismatch. The nominator can choose to submit
+  anonymously — their name is hidden from the public view (their verified identity is
+  still recorded internally), but the nominee is always shown. A nomination can call
+  out more than one GRIT value at once.
+- **The nominee directory** (see [Importing the nominee directory](#importing-the-nominee-directory))
+  is imported by an admin from a CSV export of the company's Slack workspace member
+  list. It's the only source of who can be nominated — if someone's missing (e.g. a
+  brand-new hire), an admin re-imports an updated CSV to add them.
 - **Every nomination is public immediately** — a feed shows every nomination ever
   submitted (filterable by GRIT category or by round, and searchable by nominee,
   nominator, or reason text), regardless of who wins.
@@ -42,16 +47,12 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
   nomination to show they agree — no extra prompt, since you're already
   authenticated. Reactions only work on nominations in the **current, still-open
   round** — once a round is closed, its nomination tallies are locked in.
-- **Profile pages** (`/people/:name`): click any nominee's name/photo to see a
+- **Profile pages** (`/people/:email`): click any nominee's name/photo to see a
   "wall of fame" — every nomination they've ever received, their total agree count,
-  a breakdown by GRIT category, and any rounds they've won. Nominees are matched by
-  name (case-insensitive), so two different people who happen to share an exact name
-  would show up as one profile.
+  a breakdown by GRIT category, and any rounds they've won.
 - **Leaderboard** (`/leaderboard`): a fun, all-time view of the most-nominated people,
   the biggest crowd favorites (most agrees), the top public nominators, and a
   "champion" for each GRIT category.
-- **Nominee autocomplete**: the nomination form suggests previously-nominated people
-  by email as you type, auto-filling their name to cut down on typos.
 - **Profile photos come from Google**: there's nothing to upload or manage. Whoever
   signs in brings their Google profile picture with them, and it's refreshed on each
   sign-in. Anyone who hasn't signed in yet — including someone who's been nominated
@@ -68,6 +69,8 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
   automatically go into whichever round is currently "open."
 - An **admin** (any signed-in user holding the `admin` role — see
   [Roles and admin access](#roles-and-admin-access)) can:
+  - Import/refresh the nominee directory from a Slack CSV export (see
+    [Importing the nominee directory](#importing-the-nominee-directory))
   - Start a new round (this closes the previous one)
   - Spin an animated wheel — choose between one **equally-weighted** slice per unique
     nominee, or a slice **weighted by nomination count** (people nominated more times
