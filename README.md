@@ -81,6 +81,33 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
     rounds, agrees, unique nominees/nominators, average nominations per round) and bar
     charts of nominations by GRIT category and by round
 
+## Importing the nominee directory
+
+The nominate form only lets people pick from an imported roster — there's no
+free-text nominee field. To populate or refresh it:
+
+1. In Slack, export your workspace's member list to CSV (Slack admin settings →
+   Members → Export). The exact columns vary by plan, but the importer looks for
+   (case-insensitively): an email column (`email`), a name column (`fullname`,
+   `full name`, `real name`, `name`, or `displayname`), and optionally a `status`
+   column and a bot-flag column (`bots`/`is_bot`).
+2. Go to `/admin` (requires the `admin` role) and use the **Nominee directory** card
+   to upload the CSV.
+3. Only **Active**, non-bot rows with an `@bitwarden.com` email are kept; everything
+   else (deactivated accounts, bots/apps, other domains) is silently skipped and
+   counted in the import summary.
+4. If a row has no display name, the app derives one from the email's local part by
+   dropping the first character (the first-initial in Bitwarden's
+   `firstinitial+lastname@bitwarden.com` convention) and capitalizing the rest — e.g.
+   `jscarito@bitwarden.com` → "Scarito". This is a plain fallback with no special
+   handling for dots/underscores in the local part, so an email like
+   `jordan.kim@bitwarden.com` with no display name on file would fall back to
+   "Ordan.kim" rather than "Jordan Kim" — Slack display names should be kept
+   populated where possible to avoid this.
+5. Re-importing is safe: existing people are matched by email and their name is
+   updated if it changed; nobody is ever removed automatically, so re-running an
+   older export can't delete people.
+
 ## Project layout
 
 ```
@@ -480,9 +507,9 @@ deploy appears to succeed while the VM quietly keeps running the old images.
 - **Sign in**: `/login` — click **Continue with Google** and pick your
   `@bitwarden.com` account. You'll stay signed in for 30 days on that device; use
   **Log out** in the header to end your session early.
-- **Nominate**: once signed in, go to `/nominate`, fill out the form, and submit. You
-  only need the nominee's name (no email); check every GRIT value that applies. Your
-  own identity comes from your session automatically.
+- **Nominate**: once signed in, go to `/nominate`, fill out the form, and submit. Start
+  typing the nominee's name and pick them from the directory list; check every GRIT
+  value that applies. Your own identity comes from your session automatically.
 - **Nominations**: `/nominations` shows every nomination publicly, filterable by GRIT
   category and searchable. Click the 👍 button on a nomination from the current round
   to agree with it. Click a nominee's name/photo to see their full profile.
@@ -492,6 +519,8 @@ deploy appears to succeed while the VM quietly keeps running the old images.
   once the wheel has been spun.
 - **Admin**: `/admin` — only visible/usable if you hold the `admin` role. From there
   you can:
+  - Import/refresh the nominee directory from a Slack CSV export (see
+    [Importing the nominee directory](#importing-the-nominee-directory))
   - Start a new round for the upcoming all-hands
   - Spin the wheel for the current round once nominations are in — toggle "Weight
     slices by number of nominations" beforehand if you want people with more
@@ -518,10 +547,11 @@ deploy appears to succeed while the VM quietly keeps running the old images.
   sign-in and discarded. A person's display name and profile picture URL are picked
   up from their Google profile and refreshed on each sign-in.
 - Profile photos come from Google and there is **no upload feature**. That means a
-  photo only exists for someone who has signed in at least once. Nominees are stored
-  as free-text emails on the nomination with no link to a user account, so anyone who
-  has never opened the app shows an initials placeholder — including, potentially, a
-  round winner. Coverage starts empty and fills in as people sign in.
+  photo only exists for someone who has signed in at least once — being in the
+  nominee directory (imported from Slack) is not the same as having signed into this
+  app, so anyone who has never opened the app shows an initials placeholder instead,
+  including, potentially, a round winner. Coverage starts empty and fills in as
+  people sign in.
 - Avatars are proxied through `GET /api/avatars/:email` rather than linking Google's
   CDN directly. Serving them same-origin is what keeps the winner card's canvas
   export working, since that draws the image with `crossOrigin = 'anonymous'` before
