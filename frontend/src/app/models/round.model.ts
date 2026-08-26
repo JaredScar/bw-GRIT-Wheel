@@ -16,6 +16,7 @@ export interface Round {
   status: RoundStatus;
   winnerNominationId: string | null;
   winnerNomineeName: string | null;
+  winnerNomineeEmail: string | null;
   wheelMode: WheelMode | null;
   spunAt: string | null;
   createdAt: string;
@@ -23,6 +24,7 @@ export interface Round {
 
 export interface WheelEntry {
   nomineeName: string;
+  nomineeEmail: string;
   nominationIds: string[];
 }
 

@@ -57,7 +57,7 @@ export class AnalyticsService {
         .getRawMany<{ category: string; count: string }>(),
       this.nominationsRepository
         .createQueryBuilder('n')
-        .select('COUNT(DISTINCT LOWER(TRIM(n.nomineeName)))', 'count')
+        .select('COUNT(DISTINCT n.nomineeEmail)', 'count')
         .getRawOne<{ count: string }>(),
       this.nominationsRepository
         .createQueryBuilder('n')

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DirectoryModule } from '../directory/directory.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { RoundsModule } from '../rounds/rounds.module';
 import { NominationUpvote } from './nomination-upvote.entity';
@@ -8,7 +9,12 @@ import { NominationsController } from './nominations.controller';
 import { NominationsService } from './nominations.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Nomination, NominationUpvote]), RoundsModule, NotificationsModule],
+  imports: [
+    TypeOrmModule.forFeature([Nomination, NominationUpvote]),
+    RoundsModule,
+    NotificationsModule,
+    DirectoryModule,
+  ],
   controllers: [NominationsController],
   providers: [NominationsService],
   exports: [NominationsService],

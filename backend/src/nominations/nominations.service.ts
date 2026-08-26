@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { GritCategory } from '../common/grit-category.enum';
+import { DirectoryService } from '../directory/directory.service';
 import { SlackNotificationService } from '../notifications/slack-notification.service';
 import { RoundsService } from '../rounds/rounds.service';
 import { CreateNominationDto } from './dto/create-nomination.dto';
@@ -13,6 +14,7 @@ export interface PublicNomination {
   nominatorName: string | null;
   isAnonymous: boolean;
   nomineeName: string;
+  nomineeEmail: string;
   gritCategories: GritCategory[];
   reason: string;
   roundId: string;
@@ -36,16 +38,23 @@ export class NominationsService {
     private readonly upvotesRepository: Repository<NominationUpvote>,
     private readonly roundsService: RoundsService,
     private readonly slackNotificationService: SlackNotificationService,
+    private readonly directoryService: DirectoryService,
   ) {}
 
   async create(dto: CreateNominationDto, nominatorEmail: string): Promise<PublicNomination> {
+    const nominee = await this.directoryService.findByEmail(dto.nomineeEmail);
+    if (!nominee) {
+      throw new BadRequestException('Please select the nominee from the list');
+    }
+
     const currentRound = await this.roundsService.getOrCreateCurrentOpenRound();
 
     const nomination = this.nominationsRepository.create({
       nominatorName: dto.nominatorName.trim(),
       nominatorEmail: nominatorEmail.trim().toLowerCase(),
       isAnonymous: dto.isAnonymous ?? false,
-      nomineeName: dto.nomineeName.trim(),
+      nomineeName: nominee.name,
+      nomineeEmail: nominee.email,
       gritCategories: dto.gritCategories,
       reason: dto.reason.trim(),
       roundId: currentRound.id,
@@ -67,7 +76,7 @@ export class NominationsService {
   async findAll(filters: {
     roundId?: string;
     gritCategory?: GritCategory;
-    nomineeName?: string;
+    nomineeEmail?: string;
     viewerEmail?: string;
   }): Promise<PublicNomination[]> {
     const qb = this.nominationsRepository.createQueryBuilder('n');
@@ -78,9 +87,9 @@ export class NominationsService {
     if (filters.gritCategory) {
       qb.andWhere(':category = ANY(n.gritCategories)', { category: filters.gritCategory });
     }
-    if (filters.nomineeName) {
-      qb.andWhere('LOWER(TRIM(n.nomineeName)) = LOWER(TRIM(:nomineeName))', {
-        nomineeName: filters.nomineeName,
+    if (filters.nomineeEmail) {
+      qb.andWhere('n.nomineeEmail = :nomineeEmail', {
+        nomineeEmail: filters.nomineeEmail.trim().toLowerCase(),
       });
     }
     qb.orderBy('n.createdAt', 'DESC');
@@ -196,6 +205,7 @@ export class NominationsService {
       nominatorName: nomination.isAnonymous ? null : nomination.nominatorName,
       isAnonymous: nomination.isAnonymous,
       nomineeName: nomination.nomineeName,
+      nomineeEmail: nomination.nomineeEmail,
       gritCategories: nomination.gritCategories,
       reason: nomination.reason,
       roundId: nomination.roundId,

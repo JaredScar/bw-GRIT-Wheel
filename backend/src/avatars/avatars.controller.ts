@@ -14,12 +14,12 @@ export class AvatarsController {
    *
    * Any signed-in user can read these, matching the rest of the public feed.
    */
-  @Get(':name')
-  async getAvatar(@Param('name') name: string, @Res() res: Response) {
-    const avatar = await this.avatarsService.getAvatar(name);
+  @Get(':email')
+  async getAvatar(@Param('email') email: string, @Res() res: Response) {
+    const avatar = await this.avatarsService.getAvatar(email);
     if (!avatar) {
       // The client turns this into its initials placeholder.
-      throw new NotFoundException('No avatar found for that name');
+      throw new NotFoundException('No avatar found for that email');
     }
 
     res.setHeader('Content-Type', avatar.contentType);

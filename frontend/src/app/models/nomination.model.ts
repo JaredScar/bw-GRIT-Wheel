@@ -5,6 +5,7 @@ export interface Nomination {
   nominatorName: string | null;
   isAnonymous: boolean;
   nomineeName: string;
+  nomineeEmail: string;
   gritCategories: GritCategory[];
   reason: string;
   roundId: string;
@@ -22,7 +23,7 @@ export interface ToggleUpvoteResult {
 export interface CreateNominationPayload {
   nominatorName: string;
   isAnonymous: boolean;
-  nomineeName: string;
+  nomineeEmail: string;
   gritCategories: GritCategory[];
   reason: string;
 }

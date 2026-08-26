@@ -19,12 +19,12 @@ export class NominationsController {
     @CurrentUser() user: SessionUser,
     @Query('roundId') roundId?: string,
     @Query('gritCategory') gritCategory?: GritCategory,
-    @Query('nomineeName') nomineeName?: string,
+    @Query('nomineeEmail') nomineeEmail?: string,
   ) {
     return this.nominationsService.findAll({
       roundId,
       gritCategory,
-      nomineeName,
+      nomineeEmail,
       viewerEmail: user.email,
     });
   }

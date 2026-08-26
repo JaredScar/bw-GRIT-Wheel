@@ -28,6 +28,9 @@ export class Nomination {
   @Column()
   nomineeName: string;
 
+  @Column()
+  nomineeEmail: string;
+
   @Column('text', { array: true })
   gritCategories: GritCategory[];
 

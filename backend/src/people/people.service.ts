@@ -8,6 +8,7 @@ import { NominationsService, PublicNomination } from '../nominations/nominations
 import { RoundsService } from '../rounds/rounds.service';
 
 export interface PersonSummary {
+  email: string;
   name: string;
   nominationCount: number;
 }
@@ -19,6 +20,7 @@ export interface PersonWin {
 }
 
 export interface PersonProfile {
+  email: string;
   name: string;
   totalNominations: number;
   totalUpvotes: number;
@@ -28,12 +30,14 @@ export interface PersonProfile {
 }
 
 export interface LeaderboardEntry {
+  email: string;
   name: string;
   value: number;
 }
 
 export interface CategoryChampion {
   category: GritCategory;
+  email: string;
   name: string;
   count: number;
 }
@@ -61,23 +65,25 @@ export class PeopleService {
   async listPeople(): Promise<PersonSummary[]> {
     const rows = await this.nominationsRepository
       .createQueryBuilder('n')
-      .select('MAX(n.nomineeName)', 'name')
+      .select('n.nomineeEmail', 'email')
+      .addSelect('MAX(n.nomineeName)', 'name')
       .addSelect('COUNT(*)', 'count')
-      .groupBy('LOWER(TRIM(n.nomineeName))')
+      .groupBy('n.nomineeEmail')
       .orderBy('name', 'ASC')
-      .getRawMany<{ name: string; count: string }>();
+      .getRawMany<{ email: string; name: string; count: string }>();
 
     return rows.map((row) => ({
+      email: row.email,
       name: row.name,
       nominationCount: parseInt(row.count, 10),
     }));
   }
 
-  async getProfile(name: string): Promise<PersonProfile> {
-    const normalizedName = name.trim();
-    const nominations = await this.nominationsService.findAll({ nomineeName: normalizedName });
+  async getProfile(email: string): Promise<PersonProfile> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const nominations = await this.nominationsService.findAll({ nomineeEmail: normalizedEmail });
 
-    const displayName = nominations[0]?.nomineeName ?? normalizedName;
+    const name = nominations[0]?.nomineeName ?? normalizedEmail;
     const totalUpvotes = nominations.reduce((sum, n) => sum + n.upvoteCount, 0);
 
     const categoryCounts = new Map<GritCategory, number>();
@@ -91,7 +97,7 @@ export class PeopleService {
       count,
     }));
 
-    const winningRounds = await this.roundsService.findWinsByName(displayName);
+    const winningRounds = await this.roundsService.findWinsByEmail(normalizedEmail);
     const wins = winningRounds.map((round) => ({
       roundId: round.id,
       roundTitle: round.title,
@@ -99,7 +105,8 @@ export class PeopleService {
     }));
 
     return {
-      name: displayName,
+      email: normalizedEmail,
+      name,
       totalNominations: nominations.length,
       totalUpvotes,
       categoryBreakdown,
@@ -112,45 +119,51 @@ export class PeopleService {
     const [topNominatedRows, topAgreedRows, topNominatorRows, categoryChampions] = await Promise.all([
       this.nominationsRepository
         .createQueryBuilder('n')
-        .select('MAX(n.nomineeName)', 'name')
+        .select('n.nomineeEmail', 'email')
+        .addSelect('MAX(n.nomineeName)', 'name')
         .addSelect('COUNT(*)', 'count')
-        .groupBy('LOWER(TRIM(n.nomineeName))')
+        .groupBy('n.nomineeEmail')
         .orderBy('count', 'DESC')
         .limit(LEADERBOARD_LIMIT)
-        .getRawMany<{ name: string; count: string }>(),
+        .getRawMany<{ email: string; name: string; count: string }>(),
       this.nominationsRepository
         .createQueryBuilder('n')
         .leftJoin('n.upvotes', 'u')
-        .select('MAX(n.nomineeName)', 'name')
+        .select('n.nomineeEmail', 'email')
+        .addSelect('MAX(n.nomineeName)', 'name')
         .addSelect('COUNT(u.id)', 'totalUpvotes')
-        .groupBy('LOWER(TRIM(n.nomineeName))')
+        .groupBy('n.nomineeEmail')
         .orderBy('"totalUpvotes"', 'DESC')
         .limit(LEADERBOARD_LIMIT)
-        .getRawMany<{ name: string; totalUpvotes: string }>(),
+        .getRawMany<{ email: string; name: string; totalUpvotes: string }>(),
       this.nominationsRepository
         .createQueryBuilder('n')
-        .select('MAX(n.nominatorName)', 'name')
+        .select('n.nominatorEmail', 'email')
+        .addSelect('MAX(n.nominatorName)', 'name')
         .addSelect('COUNT(*)', 'count')
         .where('n.isAnonymous = false')
-        .groupBy('LOWER(TRIM(n.nominatorEmail))')
+        .groupBy('n.nominatorEmail')
         .orderBy('count', 'DESC')
         .limit(LEADERBOARD_LIMIT)
-        .getRawMany<{ name: string; count: string }>(),
+        .getRawMany<{ email: string; name: string; count: string }>(),
       this.getCategoryChampions(),
     ]);
 
     return {
       topNominated: topNominatedRows.map((row) => ({
+        email: row.email,
         name: row.name,
         value: parseInt(row.count, 10),
       })),
       topAgreed: topAgreedRows
         .map((row) => ({
+          email: row.email,
           name: row.name,
           value: parseInt(row.totalUpvotes, 10),
         }))
         .filter((entry) => entry.value > 0),
       topNominators: topNominatorRows.map((row) => ({
+        email: row.email,
         name: row.name,
         value: parseInt(row.count, 10),
       })),
@@ -164,17 +177,19 @@ export class PeopleService {
     for (const category of Object.values(GritCategory)) {
       const row = await this.nominationsRepository
         .createQueryBuilder('n')
-        .select('MAX(n.nomineeName)', 'name')
+        .select('n.nomineeEmail', 'email')
+        .addSelect('MAX(n.nomineeName)', 'name')
         .addSelect('COUNT(*)', 'count')
         .where(':category = ANY(n.gritCategories)', { category })
-        .groupBy('LOWER(TRIM(n.nomineeName))')
+        .groupBy('n.nomineeEmail')
         .orderBy('count', 'DESC')
         .limit(1)
-        .getRawOne<{ name: string; count: string }>();
+        .getRawOne<{ email: string; name: string; count: string }>();
 
       if (row) {
         champions.push({
           category,
+          email: row.email,
           name: row.name,
           count: parseInt(row.count, 10),
         });

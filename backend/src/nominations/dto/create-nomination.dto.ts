@@ -2,6 +2,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsEmail,
   IsEnum,
   IsNotEmpty,
   IsOptional,
@@ -19,9 +20,8 @@ export class CreateNominationDto {
   @IsBoolean()
   isAnonymous?: boolean;
 
-  @IsNotEmpty({ message: "The nominee's name is required" })
-  @MaxLength(120)
-  nomineeName: string;
+  @IsEmail({}, { message: 'Please select the nominee from the list' })
+  nomineeEmail: string;
 
   @IsArray()
   @ArrayMinSize(1, { message: 'Please select at least one GRIT value' })

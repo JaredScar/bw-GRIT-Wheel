@@ -38,6 +38,9 @@ export class Round {
   @Column({ type: 'varchar', nullable: true })
   winnerNomineeName: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  winnerNomineeEmail: string | null;
+
   @Column({ type: 'timestamptz', nullable: true })
   spunAt: Date | null;
 
