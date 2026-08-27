@@ -31,6 +31,37 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./pages/admin-page/admin-page.component').then((m) => m.AdminPageComponent),
+    children: [
+      { path: '', redirectTo: 'rounds', pathMatch: 'full' },
+      {
+        path: 'rounds',
+        loadComponent: () =>
+          import('./pages/admin-rounds-page/admin-rounds-page.component').then(
+            (m) => m.AdminRoundsPageComponent,
+          ),
+      },
+      {
+        path: 'directory',
+        loadComponent: () =>
+          import('./pages/admin-directory-page/admin-directory-page.component').then(
+            (m) => m.AdminDirectoryPageComponent,
+          ),
+      },
+      {
+        path: 'users',
+        loadComponent: () =>
+          import('./pages/admin-users-page/admin-users-page.component').then(
+            (m) => m.AdminUsersPageComponent,
+          ),
+      },
+      {
+        path: 'analytics',
+        loadComponent: () =>
+          import('./pages/admin-analytics-page/admin-analytics-page.component').then(
+            (m) => m.AdminAnalyticsPageComponent,
+          ),
+      },
+    ],
   },
   // Leaderboard is temporarily disabled; keeping the route commented out (rather than
   // deleting the page) so it can be re-enabled later without rebuilding it from scratch.

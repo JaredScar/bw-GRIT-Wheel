@@ -7,3 +7,13 @@ export interface SessionUser {
   roles: Role[];
   isAdmin: boolean;
 }
+
+/** Full account record as returned by the admin-only /users endpoints. */
+export interface ManagedUser {
+  id: string;
+  email: string;
+  name: string | null;
+  roles: Role[];
+  lastLoginAt: string | null;
+  createdAt: string;
+}

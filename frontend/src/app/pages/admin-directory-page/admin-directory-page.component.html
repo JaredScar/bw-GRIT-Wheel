@@ -1,0 +1,36 @@
+<div class="card directory-card">
+  <h2>Nominee directory</h2>
+  <p class="hint">
+    The nominate form only lets people pick from this roster. Import a CSV export of your
+    Slack workspace's member list (Active, non-bot, &#64;bitwarden.com accounts are kept;
+    everything else is skipped) to add new hires or refresh names.
+  </p>
+  <p class="hint"><strong>{{ directoryCount() }}</strong> {{ directoryCount() === 1 ? 'person' : 'people' }} currently nominate-able.</p>
+
+  @if (directoryImportError()) {
+    <div class="banner banner-error">{{ directoryImportError() }}</div>
+  }
+  @if (directoryImportSummary(); as summary) {
+    <div class="banner banner-success">
+      Imported {{ summary.imported }}, updated {{ summary.updated }}, skipped {{ summary.skipped }}
+      (of {{ summary.totalRows }} rows).
+    </div>
+  }
+
+  <div class="directory-import">
+    <input
+      #csvInput
+      type="file"
+      accept=".csv,text/csv"
+      (change)="onDirectoryFileSelected($any($event.target).files)"
+    />
+    <button
+      class="btn btn-primary"
+      type="button"
+      [disabled]="!selectedCsvFile() || importingDirectory()"
+      (click)="importDirectory(csvInput)"
+    >
+      {{ importingDirectory() ? 'Importing...' : 'Import CSV' }}
+    </button>
+  </div>
+</div>

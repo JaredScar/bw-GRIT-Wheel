@@ -119,6 +119,15 @@ button {
   }
 }
 
+.btn-danger {
+  background: var(--bw-danger);
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #96220a;
+  }
+}
+
 .btn-small {
   padding: 0.4rem 0.85rem;
   font-size: 0.82rem;

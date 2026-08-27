@@ -16,6 +16,7 @@ import { PeopleModule } from './people/people.module';
 import { Round } from './rounds/round.entity';
 import { RoundsModule } from './rounds/rounds.module';
 import { User } from './users/user.entity';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { User } from './users/user.entity';
     PeopleModule,
     AnalyticsModule,
     DirectoryModule,
+    UsersModule,
   ],
   // Order matters: Nest runs global guards in registration order, so JwtAuthGuard
   // populates request.user before RolesGuard reads the roles off it.

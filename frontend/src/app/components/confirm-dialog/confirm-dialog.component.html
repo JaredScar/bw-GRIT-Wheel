@@ -1,0 +1,19 @@
+<div class="modal-backdrop" (click)="cancelled.emit()">
+  <div class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <h2>{{ title }}</h2>
+    <p>{{ message }}</p>
+
+    @if (error) {
+      <div class="banner banner-error">{{ error }}</div>
+    }
+
+    <div class="modal__actions">
+      <button type="button" class="btn btn-secondary" [disabled]="confirming" (click)="cancelled.emit()">
+        {{ cancelLabel }}
+      </button>
+      <button type="button" class="btn btn-danger" [disabled]="confirming" (click)="confirmed.emit()">
+        {{ confirming ? 'Please wait...' : confirmLabel }}
+      </button>
+    </div>
+  </div>
+</div>

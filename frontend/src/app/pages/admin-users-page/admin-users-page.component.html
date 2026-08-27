@@ -1,0 +1,139 @@
+<div class="card users-card">
+  <h2>Manage users</h2>
+  <p class="hint">
+    Add teammates so they have an account (and, if applicable, admin access) before their
+    first Google sign-in, rename a display name, or remove an account. Removing a user only
+    deletes their account — their past nominations and analytics history aren't affected.
+  </p>
+
+  @if (usersError()) {
+    <div class="banner banner-error">{{ usersError() }}</div>
+  }
+
+  <form class="new-user-form" [formGroup]="newUserForm" (ngSubmit)="createUser()">
+    @if (createUserError()) {
+      <div class="banner banner-error">{{ createUserError() }}</div>
+    }
+    <div class="new-user-form__fields">
+      <div class="form-field">
+        <label for="newUserEmail">Email</label>
+        <input
+          id="newUserEmail"
+          type="email"
+          formControlName="email"
+          placeholder="jdoe@bitwarden.com"
+        />
+      </div>
+      <div class="form-field">
+        <label for="newUserName">Name (optional)</label>
+        <input id="newUserName" type="text" formControlName="name" placeholder="Jane Doe" />
+      </div>
+    </div>
+    <button class="btn btn-primary" type="submit" [disabled]="creatingUser()">
+      {{ creatingUser() ? 'Adding...' : 'Add user' }}
+    </button>
+  </form>
+
+  @if (renameError()) {
+    <div class="banner banner-error">{{ renameError() }}</div>
+  }
+
+  @if (loadingUsers()) {
+    <p class="hint">Loading users...</p>
+  } @else if (users().length === 0) {
+    <p class="hint">No users yet.</p>
+  } @else {
+    <table class="users-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Last login</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (user of users(); track user.id) {
+          <tr>
+            <td>
+              @if (editingUserId() === user.id) {
+                <input
+                  type="text"
+                  class="inline-edit"
+                  [value]="editingName()"
+                  (input)="editingName.set($any($event.target).value)"
+                  (keydown.enter)="saveUserName(user)"
+                  (keydown.escape)="cancelEditingUser()"
+                />
+              } @else {
+                {{ user.name || '—' }}
+              }
+            </td>
+            <td>{{ user.email }}</td>
+            <td>
+              @if (user.roles.includes('admin')) {
+                <span class="badge badge-admin">Admin</span>
+              }
+            </td>
+            <td>{{ user.lastLoginAt ? (user.lastLoginAt | date: 'MMM d, y') : 'Never' }}</td>
+            <td class="users-table__actions">
+              @if (editingUserId() === user.id) {
+                <button
+                  type="button"
+                  class="btn btn-primary btn-small"
+                  [disabled]="savingUserId() === user.id"
+                  (click)="saveUserName(user)"
+                >
+                  {{ savingUserId() === user.id ? 'Saving...' : 'Save' }}
+                </button>
+                <button type="button" class="btn btn-secondary btn-small" (click)="cancelEditingUser()">
+                  Cancel
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-small"
+                  (click)="startEditingUser(user)"
+                >
+                  Rename
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-danger btn-small"
+                  [disabled]="user.id === authService.currentUser()?.id"
+                  [title]="
+                    user.id === authService.currentUser()?.id
+                      ? 'You cannot delete your own account'
+                      : ''
+                  "
+                  (click)="confirmDeleteUser(user)"
+                >
+                  Delete
+                </button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
+
+@if (userPendingDelete(); as userToDelete) {
+  <app-confirm-dialog
+    title="Delete this user?"
+    [message]="
+      'This permanently deletes ' +
+      (userToDelete.name || userToDelete.email) +
+      '\'s account (' +
+      userToDelete.email +
+      '). Their past nominations and analytics history are not affected. This cannot be undone.'
+    "
+    confirmLabel="Delete user"
+    [confirming]="deletingUser()"
+    [error]="deleteUserError()"
+    (confirmed)="deleteUser()"
+    (cancelled)="cancelDeleteUser()"
+  ></app-confirm-dialog>
+}

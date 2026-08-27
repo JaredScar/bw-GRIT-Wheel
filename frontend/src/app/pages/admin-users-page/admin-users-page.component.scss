@@ -1,0 +1,61 @@
+.users-card {
+  margin-bottom: 1.5rem;
+
+  h2 {
+    margin-top: 0;
+  }
+}
+
+.new-user-form {
+  margin-bottom: 1.25rem;
+
+  &__fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    text-align: left;
+    padding: 0.6rem 0.5rem;
+    border-bottom: 1px solid var(--bw-border);
+    font-size: 0.9rem;
+  }
+
+  th {
+    color: var(--bw-text-muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  th:last-child,
+  td:last-child {
+    text-align: right;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+}
+
+.inline-edit {
+  width: 100%;
+  border: 1px solid var(--bw-border);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.badge-admin {
+  background: var(--bw-navy);
+}

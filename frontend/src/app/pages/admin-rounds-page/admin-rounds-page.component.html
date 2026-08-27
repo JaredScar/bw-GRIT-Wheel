@@ -1,0 +1,224 @@
+@if (loadingRound()) {
+  <div class="empty-state">Loading current round...</div>
+} @else if (currentRound()) {
+  <div class="card round-panel">
+    <div class="round-panel__header">
+      <div>
+        <h2>{{ currentRound()!.title }}</h2>
+        @if (currentRound()!.eventDate) {
+          <span class="hint">{{ currentRound()!.eventDate | date: 'MMMM d, y' }}</span>
+        }
+      </div>
+      <span class="status-pill" [class]="'status-' + currentRound()!.status.toLowerCase()">
+        {{ currentRound()!.status }}
+      </span>
+    </div>
+
+    @if (currentRound()!.status === RoundStatus.OPEN) {
+      <p class="hint">{{ wheelEntries().length }} unique nominee(s) eligible to spin for.</p>
+
+      <label class="weight-toggle">
+        <input
+          type="checkbox"
+          [checked]="weightedWheel()"
+          [disabled]="spinning()"
+          (change)="weightedWheel.set($any($event.target).checked)"
+        />
+        Weight slices by number of nominations (instead of equal weight per person)
+      </label>
+
+      <div class="presentation-bar">
+        <button type="button" class="btn btn-secondary btn-small" (click)="enterPresentationMode()">
+          🖥️ Presentation mode
+        </button>
+      </div>
+
+      <div
+        class="presentation-stage"
+        #presentationStageEl
+        [class.presentation-stage--active]="presentationMode()"
+      >
+        @if (presentationMode()) {
+          <div class="presentation-stage__bar">
+            <span class="presentation-stage__title">{{ currentRound()!.title }}</span>
+            <button type="button" class="btn btn-secondary btn-small" (click)="exitPresentationMode()">
+              ✕ Exit presentation
+            </button>
+          </div>
+        }
+
+        <app-randomizer-stage #stageRef [entries]="segments" (spinFinished)="onSpinFinished()">
+          @if (spinError()) {
+            <div class="banner banner-error">{{ spinError() }}</div>
+          }
+
+          <div class="spin-actions">
+            <button
+              class="btn btn-primary"
+              type="button"
+              (click)="spinWheel()"
+              [disabled]="spinning() || wheelEntries().length === 0"
+            >
+              {{ spinning() && !testSpinning() ? 'Spinning...' : 'Spin the wheel' }}
+            </button>
+            <button
+              class="btn btn-secondary"
+              type="button"
+              (click)="testSpin()"
+              [disabled]="spinning() || wheelEntries().length === 0"
+              title="Spins over the real nominees without saving a winner or affecting the round"
+            >
+              {{ testSpinning() ? 'Testing...' : '🧪 Test spin' }}
+            </button>
+          </div>
+
+          @if (testResult(); as testName) {
+            <div class="test-spin-result">
+              🧪 Test result (not saved): <strong>{{ testName }}</strong>
+              <button
+                type="button"
+                class="link-btn"
+                (click)="testResult.set(null); testResultNominations.set([])"
+              >
+                Dismiss
+              </button>
+            </div>
+            @if (testResultNominations().length > 0) {
+              <div class="winner-nominations">
+                @for (nomination of testResultNominations(); track nomination.id) {
+                  <div class="winner-nominations__item">
+                    <div class="winner-nominations__categories">
+                      @for (category of nomination.gritCategories; track category) {
+                        <span class="badge" [class]="categoryBadgeClass(category)">{{ categoryLabels[category] }}</span>
+                      }
+                    </div>
+                    <p class="winner-nominations__reason">"{{ nomination.reason }}"</p>
+                    <p class="winner-nominations__from">— {{ nominatorDisplayName(nomination) }}</p>
+                  </div>
+                }
+              </div>
+            }
+          }
+
+          @if (winner()) {
+            <div class="winner-reveal">
+              <app-avatar [email]="winner()!.nomineeEmail" [name]="winner()!.nomineeName" [size]="40"></app-avatar>
+              <span>🏆 Winner: <strong>{{ winner()!.nomineeName }}</strong></span>
+              <button
+                class="btn btn-secondary btn-small"
+                type="button"
+                [disabled]="sharingCard()"
+                (click)="shareWinnerCard(winner()!.nomineeName, winner()!.nomineeEmail)"
+              >
+                📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
+              </button>
+            </div>
+            @if (cardError()) {
+              <div class="banner banner-error">{{ cardError() }}</div>
+            }
+            @if (winnerNominations().length > 0) {
+              <div class="winner-nominations">
+                @for (nomination of winnerNominations(); track nomination.id) {
+                  <div class="winner-nominations__item">
+                    <div class="winner-nominations__categories">
+                      @for (category of nomination.gritCategories; track category) {
+                        <span class="badge" [class]="categoryBadgeClass(category)">{{ categoryLabels[category] }}</span>
+                      }
+                    </div>
+                    <p class="winner-nominations__reason">"{{ nomination.reason }}"</p>
+                    <p class="winner-nominations__from">— {{ nominatorDisplayName(nomination) }}</p>
+                  </div>
+                }
+              </div>
+            }
+          }
+        </app-randomizer-stage>
+      </div>
+    } @else if (currentRound()!.winnerNomineeName) {
+      <div class="winner-reveal">
+        <app-avatar
+          [email]="currentRound()!.winnerNomineeEmail"
+          [name]="currentRound()!.winnerNomineeName"
+          [size]="40"
+        ></app-avatar>
+        <span>🏆 Winner: <strong>{{ currentRound()!.winnerNomineeName }}</strong></span>
+        @if (currentRound()!.wheelMode === WheelMode.WEIGHTED) {
+          <span class="hint">(weighted wheel)</span>
+        }
+        <button
+          class="btn btn-secondary btn-small"
+          type="button"
+          [disabled]="sharingCard()"
+          (click)="shareWinnerCard(currentRound()!.winnerNomineeName!, currentRound()!.winnerNomineeEmail!)"
+        >
+          📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
+        </button>
+      </div>
+      @if (cardError()) {
+        <div class="banner banner-error">{{ cardError() }}</div>
+      }
+      @if (winnerNominations().length > 0) {
+        <div class="winner-nominations">
+          @for (nomination of winnerNominations(); track nomination.id) {
+            <div class="winner-nominations__item">
+              <div class="winner-nominations__categories">
+                @for (category of nomination.gritCategories; track category) {
+                  <span class="badge" [class]="categoryBadgeClass(category)">{{ categoryLabels[category] }}</span>
+                }
+              </div>
+              <p class="winner-nominations__reason">"{{ nomination.reason }}"</p>
+              <p class="winner-nominations__from">— {{ nominatorDisplayName(nomination) }}</p>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <a class="btn btn-secondary" [routerLink]="['/nominations']" [queryParams]="{ roundId: currentRound()!.id }">
+      View this round's nominations
+    </a>
+  </div>
+}
+
+<div class="card new-round-card">
+  <h2>Start a new round</h2>
+  <p class="hint">
+    Creating a new round closes the current one (if still open) and starts a fresh round for
+    upcoming nominations.
+  </p>
+  <form [formGroup]="newRoundForm" (ngSubmit)="createRound()">
+    @if (createRoundError()) {
+      <div class="banner banner-error">{{ createRoundError() }}</div>
+    }
+    <div class="form-field">
+      <label for="title">Round title</label>
+      <input id="title" type="text" formControlName="title" placeholder="September 2026 All-Hands" />
+    </div>
+    <div class="form-field">
+      <label for="eventDate">Event date (optional)</label>
+      <input id="eventDate" type="date" formControlName="eventDate" />
+    </div>
+    <button class="btn btn-primary" type="submit" [disabled]="creatingRound()">
+      {{ creatingRound() ? 'Creating...' : 'Create new round' }}
+    </button>
+  </form>
+</div>
+
+<div class="card rounds-history">
+  <h2>All rounds</h2>
+  @if (allRounds().length === 0) {
+    <p class="hint">No rounds yet.</p>
+  } @else {
+    <ul>
+      @for (round of allRounds(); track round.id) {
+        <li>
+          <span class="round-title">{{ round.title }}</span>
+          <span class="status-pill" [class]="'status-' + round.status.toLowerCase()">{{ round.status }}</span>
+          @if (round.winnerNomineeName) {
+            <span class="round-winner">Winner: {{ round.winnerNomineeName }}</span>
+          }
+        </li>
+      }
+    </ul>
+  }
+</div>
