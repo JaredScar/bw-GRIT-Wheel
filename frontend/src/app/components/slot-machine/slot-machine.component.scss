@@ -3,8 +3,8 @@ $item-height: 64px;
 $visible-rows: 3;
 
 .slot {
-  margin: 1.5rem auto;
   max-width: 340px;
+  flex-shrink: 0;
 }
 
 .slot__window {

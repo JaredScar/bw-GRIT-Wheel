@@ -38,6 +38,7 @@ export class AdminPageComponent implements OnInit {
 
   readonly randomizerColor = randomizerColor;
   readonly randomizerMode = signal<'wheel' | 'slot'>('wheel');
+  readonly hoveredSegment = signal<number | null>(null);
 
   readonly RoundStatus = RoundStatus;
   readonly WheelMode = WheelMode;
@@ -89,6 +90,17 @@ export class AdminPageComponent implements OnInit {
 
   private get activeRandomizer(): Randomizer | undefined {
     return this.randomizerMode() === 'wheel' ? this.wheel : this.slotMachine;
+  }
+
+  setRandomizerMode(mode: 'wheel' | 'slot'): void {
+    this.randomizerMode.set(mode);
+    this.hoveredSegment.set(null);
+  }
+
+  onLegendHover(index: number | null): void {
+    if (this.randomizerMode() === 'wheel') {
+      this.hoveredSegment.set(index);
+    }
   }
 
   async ngOnInit(): Promise<void> {

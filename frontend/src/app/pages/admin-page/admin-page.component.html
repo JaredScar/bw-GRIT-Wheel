@@ -31,88 +31,107 @@
         </div>
 
         @if (currentRound()!.status === RoundStatus.OPEN) {
-          <p class="hint">{{ wheelEntries().length }} unique nominee(s) eligible to spin for.</p>
+          <div class="round-panel__columns">
+            <div class="round-panel__main">
+              <p class="hint">{{ wheelEntries().length }} unique nominee(s) eligible to spin for.</p>
 
-          <label class="weight-toggle">
-            <input
-              type="checkbox"
-              [checked]="weightedWheel()"
-              [disabled]="spinning()"
-              (change)="weightedWheel.set($any($event.target).checked)"
-            />
-            Weight slices by number of nominations (instead of equal weight per person)
-          </label>
+              <label class="weight-toggle">
+                <input
+                  type="checkbox"
+                  [checked]="weightedWheel()"
+                  [disabled]="spinning()"
+                  (change)="weightedWheel.set($any($event.target).checked)"
+                />
+                Weight slices by number of nominations (instead of equal weight per person)
+              </label>
 
-          <div class="randomizer-toggle">
-            <span class="randomizer-toggle__label">Randomizer style</span>
-            <button
-              type="button"
-              class="randomizer-toggle__btn"
-              [class.active]="randomizerMode() === 'wheel'"
-              [disabled]="spinning()"
-              (click)="randomizerMode.set('wheel')"
-            >
-              🎡 Wheel
-            </button>
-            <button
-              type="button"
-              class="randomizer-toggle__btn"
-              [class.active]="randomizerMode() === 'slot'"
-              [disabled]="spinning()"
-              (click)="randomizerMode.set('slot')"
-            >
-              🎰 Slot
-            </button>
-          </div>
+              <div class="randomizer-toggle">
+                <span class="randomizer-toggle__label">Randomizer style</span>
+                <button
+                  type="button"
+                  class="randomizer-toggle__btn"
+                  [class.active]="randomizerMode() === 'wheel'"
+                  [disabled]="spinning()"
+                  (click)="setRandomizerMode('wheel')"
+                >
+                  🎡 Wheel
+                </button>
+                <button
+                  type="button"
+                  class="randomizer-toggle__btn"
+                  [class.active]="randomizerMode() === 'slot'"
+                  [disabled]="spinning()"
+                  (click)="setRandomizerMode('slot')"
+                >
+                  🎰 Slot
+                </button>
+              </div>
 
-          @if (randomizerMode() === 'wheel') {
-            <app-wheel [segments]="segments"></app-wheel>
-            @if (segments.length > 0) {
-              <div class="wheel-legend">
-                @for (segment of segments; track segment.label; let i = $index) {
-                  <div class="wheel-legend__item">
-                    <span class="wheel-legend__swatch" [style.background]="randomizerColor(i)"></span>
-                    <span>{{ segment.label }}</span>
-                  </div>
+              @if (randomizerMode() === 'wheel') {
+                <app-wheel
+                  [segments]="segments"
+                  [hoveredIndex]="hoveredSegment()"
+                  (hoveredIndexChange)="hoveredSegment.set($event)"
+                ></app-wheel>
+              } @else {
+                <app-slot-machine [entries]="segments"></app-slot-machine>
+              }
+
+              @if (spinError()) {
+                <div class="banner banner-error">{{ spinError() }}</div>
+              }
+
+              <div class="spin-actions">
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  (click)="spinWheel()"
+                  [disabled]="spinning() || wheelEntries().length === 0"
+                >
+                  {{ spinning() ? 'Spinning...' : 'Spin the wheel' }}
+                </button>
+              </div>
+
+              @if (winner()) {
+                <div class="winner-reveal">
+                  <app-avatar [email]="winner()!.nomineeEmail" [name]="winner()!.nomineeName" [size]="40"></app-avatar>
+                  <span>🏆 Winner: <strong>{{ winner()!.nomineeName }}</strong></span>
+                  <button
+                    class="btn btn-secondary btn-small"
+                    type="button"
+                    [disabled]="sharingCard()"
+                    (click)="shareWinnerCard(winner()!.nomineeName, winner()!.nomineeEmail)"
+                  >
+                    📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
+                  </button>
+                </div>
+                @if (cardError()) {
+                  <div class="banner banner-error">{{ cardError() }}</div>
                 }
+              }
+            </div>
+
+            @if (segments.length > 0) {
+              <div class="randomizer-panel">
+                <h3 class="randomizer-panel__title">Eligible nominees</h3>
+                <ul class="randomizer-panel__list">
+                  @for (segment of segments; track segment.label; let i = $index) {
+                    <li
+                      class="randomizer-panel__item"
+                      [class.active]="randomizerMode() === 'wheel' && hoveredSegment() === i"
+                      (mouseenter)="onLegendHover(i)"
+                      (mouseleave)="onLegendHover(null)"
+                    >
+                      @if (randomizerMode() === 'wheel') {
+                        <span class="randomizer-panel__swatch" [style.background]="randomizerColor(i)"></span>
+                      }
+                      <span>{{ segment.label }}</span>
+                    </li>
+                  }
+                </ul>
               </div>
             }
-          } @else {
-            <app-slot-machine [entries]="segments"></app-slot-machine>
-          }
-
-          @if (spinError()) {
-            <div class="banner banner-error">{{ spinError() }}</div>
-          }
-
-          <div class="spin-actions">
-            <button
-              class="btn btn-primary"
-              type="button"
-              (click)="spinWheel()"
-              [disabled]="spinning() || wheelEntries().length === 0"
-            >
-              {{ spinning() ? 'Spinning...' : 'Spin the wheel' }}
-            </button>
           </div>
-
-          @if (winner()) {
-            <div class="winner-reveal">
-              <app-avatar [email]="winner()!.nomineeEmail" [name]="winner()!.nomineeName" [size]="40"></app-avatar>
-              <span>🏆 Winner: <strong>{{ winner()!.nomineeName }}</strong></span>
-              <button
-                class="btn btn-secondary btn-small"
-                type="button"
-                [disabled]="sharingCard()"
-                (click)="shareWinnerCard(winner()!.nomineeName, winner()!.nomineeEmail)"
-              >
-                📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
-              </button>
-            </div>
-            @if (cardError()) {
-              <div class="banner banner-error">{{ cardError() }}</div>
-            }
-          }
         } @else if (currentRound()!.winnerNomineeName) {
           <div class="winner-reveal">
             <app-avatar

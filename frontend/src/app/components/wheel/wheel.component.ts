@@ -4,8 +4,9 @@ import { Randomizer, RandomizerEntry, randomizerColor } from '../../models/rando
 /** @deprecated use `RandomizerEntry` from `models/randomizer.model` instead. */
 export type WheelSegment = RandomizerEntry;
 
-/** Matches `.wheel-wrap`'s `min(360px, 80vw)` sizing so labels stay responsive. */
-const LABEL_RADIUS = 'min(122px, 27vw)';
+const SVG_SIZE = 200;
+const SVG_CENTER = SVG_SIZE / 2;
+const SVG_RADIUS = 96;
 
 @Component({
   selector: 'app-wheel',
@@ -15,7 +16,11 @@ const LABEL_RADIUS = 'min(122px, 27vw)';
 })
 export class WheelComponent implements Randomizer {
   @Input() segments: RandomizerEntry[] = [];
+  @Input() hoveredIndex: number | null = null;
+  @Output() hoveredIndexChange = new EventEmitter<number | null>();
   @Output() spinFinished = new EventEmitter<number>();
+
+  readonly svgSize = SVG_SIZE;
 
   rotation = 0;
   spinning = false;
@@ -42,31 +47,32 @@ export class WheelComponent implements Randomizer {
     return angles[index] + (angles[index + 1] - angles[index]) / 2;
   }
 
-  conicGradient(): string {
-    if (!this.segments.length) return '#e2e6ef';
+  /** SVG arc path for one wedge, so each segment is its own hoverable element. */
+  segmentPath(index: number): string {
     const angles = this.cumulativeAngles();
-    const stops = this.segments.map(
-      (_, i) => `${this.segmentColor(i)} ${angles[i]}deg ${angles[i + 1]}deg`,
-    );
-    return `conic-gradient(${stops.join(', ')})`;
+    const start = angles[index];
+    const end = angles[index + 1];
+    const largeArc = end - start > 180 ? 1 : 0;
+    const p1 = this.pointOnCircle(start);
+    const p2 = this.pointOnCircle(end);
+    return `M ${SVG_CENTER},${SVG_CENTER} L ${p1.x},${p1.y} A ${SVG_RADIUS},${SVG_RADIUS} 0 ${largeArc} 1 ${p2.x},${p2.y} Z`;
   }
 
-  /**
-   * Positions the (zero-size) arm at the segment's midpoint angle and radius. Rotate is
-   * applied before the translate so the point swings to the right spot on the circle;
-   * see `labelTransform` for how the label itself stays upright despite this rotation.
-   */
-  armTransform(index: number): string {
-    return `rotate(${this.segmentMidAngle(index)}deg) translateY(calc(-1 * ${LABEL_RADIUS}))`;
+  /** `angleDeg` uses the same 0deg-at-top, clockwise convention as the rest of the wheel. */
+  private pointOnCircle(angleDeg: number): { x: number; y: number } {
+    const rad = (angleDeg * Math.PI) / 180;
+    return {
+      x: SVG_CENTER + SVG_RADIUS * Math.sin(rad),
+      y: SVG_CENTER - SVG_RADIUS * Math.cos(rad),
+    };
   }
 
-  /**
-   * Counter-rotates the label by the same amount the arm rotated it by, so the text
-   * always reads horizontally regardless of how few/wide the segments are — a label
-   * rotated to match a 180deg segment would otherwise render sideways.
-   */
-  labelTransform(index: number): string {
-    return `translate(-50%, -50%) rotate(${-this.segmentMidAngle(index)}deg)`;
+  onSegmentEnter(index: number): void {
+    this.hoveredIndexChange.emit(index);
+  }
+
+  onSegmentLeave(): void {
+    this.hoveredIndexChange.emit(null);
   }
 
   spinTo(index: number, extraSpins = 6): void {
