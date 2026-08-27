@@ -4,12 +4,20 @@ import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../components/avatar/avatar.component';
+import { CardFlipComponent } from '../../components/card-flip/card-flip.component';
+import { EliminationFlashComponent } from '../../components/elimination-flash/elimination-flash.component';
+import { LotteryBallComponent } from '../../components/lottery-ball/lottery-ball.component';
 import { SlotMachineComponent } from '../../components/slot-machine/slot-machine.component';
 import { WheelComponent } from '../../components/wheel/wheel.component';
 import { AnalyticsSummary } from '../../models/analytics.model';
 import { DirectoryImportSummary } from '../../models/directory-person.model';
 import { GRIT_CATEGORY_LABELS, GritCategory } from '../../models/grit-category';
-import { Randomizer, RandomizerEntry, randomizerColor } from '../../models/randomizer.model';
+import {
+  Randomizer,
+  RandomizerEntry,
+  RandomizerMode,
+  randomizerColor,
+} from '../../models/randomizer.model';
 import { Round, RoundStatus, WheelEntry, WheelMode } from '../../models/round.model';
 import { AnalyticsService } from '../../services/analytics.service';
 import { AuthService } from '../../services/auth.service';
@@ -27,6 +35,9 @@ import { WinnerCardService } from '../../services/winner-card.service';
     RouterLink,
     WheelComponent,
     SlotMachineComponent,
+    EliminationFlashComponent,
+    CardFlipComponent,
+    LotteryBallComponent,
     AvatarComponent,
   ],
   templateUrl: './admin-page.component.html',
@@ -35,9 +46,12 @@ import { WinnerCardService } from '../../services/winner-card.service';
 export class AdminPageComponent implements OnInit {
   @ViewChild(WheelComponent) wheel?: WheelComponent;
   @ViewChild(SlotMachineComponent) slotMachine?: SlotMachineComponent;
+  @ViewChild(EliminationFlashComponent) eliminationFlash?: EliminationFlashComponent;
+  @ViewChild(CardFlipComponent) cardFlip?: CardFlipComponent;
+  @ViewChild(LotteryBallComponent) lotteryBall?: LotteryBallComponent;
 
   readonly randomizerColor = randomizerColor;
-  readonly randomizerMode = signal<'wheel' | 'slot'>('wheel');
+  readonly randomizerMode = signal<RandomizerMode>('wheel');
   readonly hoveredSegment = signal<number | null>(null);
 
   readonly RoundStatus = RoundStatus;
@@ -89,10 +103,21 @@ export class AdminPageComponent implements OnInit {
   }
 
   private get activeRandomizer(): Randomizer | undefined {
-    return this.randomizerMode() === 'wheel' ? this.wheel : this.slotMachine;
+    switch (this.randomizerMode()) {
+      case 'wheel':
+        return this.wheel;
+      case 'slot':
+        return this.slotMachine;
+      case 'elimination':
+        return this.eliminationFlash;
+      case 'cardflip':
+        return this.cardFlip;
+      case 'lottery':
+        return this.lotteryBall;
+    }
   }
 
-  setRandomizerMode(mode: 'wheel' | 'slot'): void {
+  setRandomizerMode(mode: RandomizerMode): void {
     this.randomizerMode.set(mode);
     this.hoveredSegment.set(null);
   }
@@ -203,6 +228,9 @@ export class AdminPageComponent implements OnInit {
           this.wheelEntries.set([]);
           this.wheel?.reset();
           this.slotMachine?.reset();
+          this.eliminationFlash?.reset();
+          this.cardFlip?.reset();
+          this.lotteryBall?.reset();
           this.loadEverything();
           this.loadAnalytics();
         },

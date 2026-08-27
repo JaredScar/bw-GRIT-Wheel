@@ -5,6 +5,8 @@ export interface RandomizerEntry {
   weight?: number;
 }
 
+export type RandomizerMode = 'wheel' | 'slot' | 'elimination' | 'cardflip' | 'lottery';
+
 /** Shared contract so the admin page can drive whichever randomizer widget is active. */
 export interface Randomizer {
   spinFinished: EventEmitter<number>;
@@ -25,4 +27,11 @@ export const RANDOMIZER_COLORS = [
 
 export function randomizerColor(index: number): string {
   return RANDOMIZER_COLORS[index % RANDOMIZER_COLORS.length];
+}
+
+export function initialsOf(label: string): string {
+  const parts = label.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }

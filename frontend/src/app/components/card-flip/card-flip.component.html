@@ -1,0 +1,14 @@
+<div class="card-flip">
+  <div class="card-flip__grid">
+    @for (entry of entries; track entry.label; let i = $index) {
+      <div
+        class="card-flip__card"
+        [class.card-flip__card--flipped]="flippedIndex === i"
+        [class.card-flip__card--winner]="winnerIndex === i"
+      >
+        <div class="card-flip__face card-flip__face--back">?</div>
+        <div class="card-flip__face card-flip__face--front">{{ entry.label }}</div>
+      </div>
+    }
+  </div>
+</div>

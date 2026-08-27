@@ -1,0 +1,42 @@
+.elimination {
+  width: min(360px, 80vw);
+  flex-shrink: 0;
+}
+
+.elimination__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 14px;
+  border: 6px solid #fff;
+  background: var(--bw-navy);
+  box-shadow:
+    0 0 0 4px var(--bw-blue),
+    0 12px 30px rgba(20, 24, 31, 0.35);
+}
+
+.elimination__item {
+  padding: 0.5rem 0.4rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+  transition: background 0.1s ease, color 0.1s ease, transform 0.1s ease;
+
+  &--active {
+    background: #fff;
+    color: var(--bw-navy);
+    transform: scale(1.06);
+  }
+
+  &--winner {
+    background: linear-gradient(135deg, #ffb020, #ff8a00);
+    color: #fff;
+    box-shadow: 0 0 0 2px #fff, 0 0 16px rgba(255, 176, 32, 0.7);
+    transform: scale(1.08);
+  }
+}

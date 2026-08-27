@@ -1,0 +1,13 @@
+<div class="elimination">
+  <div class="elimination__grid">
+    @for (entry of entries; track entry.label; let i = $index) {
+      <div
+        class="elimination__item"
+        [class.elimination__item--active]="highlightedIndex === i"
+        [class.elimination__item--winner]="winnerIndex === i"
+      >
+        {{ entry.label }}
+      </div>
+    }
+  </div>
+</div>

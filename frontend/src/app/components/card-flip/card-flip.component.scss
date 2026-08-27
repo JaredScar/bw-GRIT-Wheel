@@ -1,0 +1,66 @@
+.card-flip {
+  width: min(360px, 80vw);
+  flex-shrink: 0;
+  padding: 1rem;
+  border-radius: 14px;
+  border: 6px solid #fff;
+  background: var(--bw-navy);
+  box-shadow:
+    0 0 0 4px var(--bw-blue),
+    0 12px 30px rgba(20, 24, 31, 0.35);
+}
+
+.card-flip__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 0.5rem;
+}
+
+.card-flip__card {
+  position: relative;
+  height: 60px;
+  perspective: 700px;
+}
+
+.card-flip__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border-radius: 8px;
+  backface-visibility: hidden;
+  transition: transform 0.28s ease;
+  font-weight: 700;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  text-align: center;
+  color: #fff;
+
+  &--back {
+    background: rgba(255, 255, 255, 0.14);
+    font-size: 1.1rem;
+    transform: rotateY(0deg);
+  }
+
+  &--front {
+    background: var(--bw-blue);
+    transform: rotateY(-180deg);
+  }
+}
+
+.card-flip__card--flipped {
+  .card-flip__face--back {
+    transform: rotateY(180deg);
+  }
+
+  .card-flip__face--front {
+    transform: rotateY(0deg);
+  }
+}
+
+.card-flip__card--winner .card-flip__face--front {
+  background: linear-gradient(135deg, #ffb020, #ff8a00);
+  box-shadow: 0 0 0 2px #fff, 0 0 16px rgba(255, 176, 32, 0.7);
+}

@@ -65,6 +65,33 @@
                 >
                   🎰 Slot
                 </button>
+                <button
+                  type="button"
+                  class="randomizer-toggle__btn"
+                  [class.active]="randomizerMode() === 'elimination'"
+                  [disabled]="spinning()"
+                  (click)="setRandomizerMode('elimination')"
+                >
+                  ⚡ Elimination
+                </button>
+                <button
+                  type="button"
+                  class="randomizer-toggle__btn"
+                  [class.active]="randomizerMode() === 'cardflip'"
+                  [disabled]="spinning()"
+                  (click)="setRandomizerMode('cardflip')"
+                >
+                  🃏 Card flip
+                </button>
+                <button
+                  type="button"
+                  class="randomizer-toggle__btn"
+                  [class.active]="randomizerMode() === 'lottery'"
+                  [disabled]="spinning()"
+                  (click)="setRandomizerMode('lottery')"
+                >
+                  🎱 Lottery
+                </button>
               </div>
 
               @if (randomizerMode() === 'wheel') {
@@ -73,8 +100,14 @@
                   [hoveredIndex]="hoveredSegment()"
                   (hoveredIndexChange)="hoveredSegment.set($event)"
                 ></app-wheel>
-              } @else {
+              } @else if (randomizerMode() === 'slot') {
                 <app-slot-machine [entries]="segments"></app-slot-machine>
+              } @else if (randomizerMode() === 'elimination') {
+                <app-elimination-flash [entries]="segments"></app-elimination-flash>
+              } @else if (randomizerMode() === 'cardflip') {
+                <app-card-flip [entries]="segments"></app-card-flip>
+              } @else {
+                <app-lottery-ball [entries]="segments"></app-lottery-ball>
               }
 
               @if (spinError()) {
@@ -122,7 +155,7 @@
                       (mouseenter)="onLegendHover(i)"
                       (mouseleave)="onLegendHover(null)"
                     >
-                      @if (randomizerMode() === 'wheel') {
+                      @if (randomizerMode() === 'wheel' || randomizerMode() === 'lottery') {
                         <span class="randomizer-panel__swatch" [style.background]="randomizerColor(i)"></span>
                       }
                       <span>{{ segment.label }}</span>
