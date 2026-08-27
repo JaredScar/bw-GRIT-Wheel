@@ -48,6 +48,26 @@ export class LotteryBallComponent implements Randomizer, OnChanges, OnDestroy {
     return randomizerColor(index);
   }
 
+  private jitterFor(index: number): { x: number; y: number; duration: number; delay: number } {
+    return this.jitterOffsets[index] ?? { x: 0, y: 0, duration: 0.4, delay: 0 };
+  }
+
+  jitterX(index: number): number {
+    return this.jitterFor(index).x;
+  }
+
+  jitterY(index: number): number {
+    return this.jitterFor(index).y;
+  }
+
+  jitterDuration(index: number): number {
+    return this.jitterFor(index).duration;
+  }
+
+  jitterDelay(index: number): number {
+    return this.jitterFor(index).delay;
+  }
+
   initials(label: string): string {
     return initialsOf(label);
   }

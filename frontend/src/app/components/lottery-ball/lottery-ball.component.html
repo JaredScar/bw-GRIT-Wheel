@@ -5,10 +5,10 @@
         class="lottery__ball"
         [class.lottery__ball--hidden]="winnerIndex !== null && winnerIndex !== i"
         [style.background]="ballColor(i)"
-        [style.--jx.px]="jitterOffsets[i]?.x ?? 0"
-        [style.--jy.px]="jitterOffsets[i]?.y ?? 0"
-        [style.animation-duration.s]="jitterOffsets[i]?.duration ?? 0.4"
-        [style.animation-delay.s]="jitterOffsets[i]?.delay ?? 0"
+        [style.--jx.px]="jitterX(i)"
+        [style.--jy.px]="jitterY(i)"
+        [style.animation-duration.s]="jitterDuration(i)"
+        [style.animation-delay.s]="jitterDelay(i)"
       >{{ initials(entry.label) }}</span>
     }
   </div>
