@@ -31,7 +31,9 @@ export class Nomination {
   @Column()
   nomineeEmail: string;
 
-  @Column('text', { array: true })
+  // Default lets the auto-sync ALTER TABLE succeed against existing rows on deploy —
+  // without it, Postgres rejects adding a NOT NULL array column to a non-empty table.
+  @Column('text', { array: true, default: () => "'{}'" })
   gritCategories: GritCategory[];
 
   @Column({ type: 'text' })
