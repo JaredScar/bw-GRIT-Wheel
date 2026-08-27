@@ -31,85 +31,47 @@
         </div>
 
         @if (currentRound()!.status === RoundStatus.OPEN) {
-          <div class="round-panel__columns">
-            <div class="round-panel__main">
-              <p class="hint">{{ wheelEntries().length }} unique nominee(s) eligible to spin for.</p>
+          <p class="hint">{{ wheelEntries().length }} unique nominee(s) eligible to spin for.</p>
 
-              <label class="weight-toggle">
-                <input
-                  type="checkbox"
-                  [checked]="weightedWheel()"
-                  [disabled]="spinning()"
-                  (change)="weightedWheel.set($any($event.target).checked)"
-                />
-                Weight slices by number of nominations (instead of equal weight per person)
-              </label>
+          <label class="weight-toggle">
+            <input
+              type="checkbox"
+              [checked]="weightedWheel()"
+              [disabled]="spinning()"
+              (change)="weightedWheel.set($any($event.target).checked)"
+            />
+            Weight slices by number of nominations (instead of equal weight per person)
+          </label>
 
-              <div class="randomizer-toggle">
-                <span class="randomizer-toggle__label">Randomizer style</span>
+          <div class="presentation-bar">
+            <button
+              type="button"
+              class="btn btn-secondary btn-small"
+              (click)="enterPresentationMode()"
+            >
+              🖥️ Presentation mode
+            </button>
+          </div>
+
+          <div
+            class="presentation-stage"
+            #presentationStageEl
+            [class.presentation-stage--active]="presentationMode()"
+          >
+            @if (presentationMode()) {
+              <div class="presentation-stage__bar">
+                <span class="presentation-stage__title">{{ currentRound()!.title }}</span>
                 <button
                   type="button"
-                  class="randomizer-toggle__btn"
-                  [class.active]="randomizerMode() === 'wheel'"
-                  [disabled]="spinning()"
-                  (click)="setRandomizerMode('wheel')"
+                  class="btn btn-secondary btn-small"
+                  (click)="exitPresentationMode()"
                 >
-                  🎡 Wheel
-                </button>
-                <button
-                  type="button"
-                  class="randomizer-toggle__btn"
-                  [class.active]="randomizerMode() === 'slot'"
-                  [disabled]="spinning()"
-                  (click)="setRandomizerMode('slot')"
-                >
-                  🎰 Slot
-                </button>
-                <button
-                  type="button"
-                  class="randomizer-toggle__btn"
-                  [class.active]="randomizerMode() === 'elimination'"
-                  [disabled]="spinning()"
-                  (click)="setRandomizerMode('elimination')"
-                >
-                  ⚡ Elimination
-                </button>
-                <button
-                  type="button"
-                  class="randomizer-toggle__btn"
-                  [class.active]="randomizerMode() === 'cardflip'"
-                  [disabled]="spinning()"
-                  (click)="setRandomizerMode('cardflip')"
-                >
-                  🃏 Card flip
-                </button>
-                <button
-                  type="button"
-                  class="randomizer-toggle__btn"
-                  [class.active]="randomizerMode() === 'lottery'"
-                  [disabled]="spinning()"
-                  (click)="setRandomizerMode('lottery')"
-                >
-                  🎱 Lottery
+                  ✕ Exit presentation
                 </button>
               </div>
+            }
 
-              @if (randomizerMode() === 'wheel') {
-                <app-wheel
-                  [segments]="segments"
-                  [hoveredIndex]="hoveredSegment()"
-                  (hoveredIndexChange)="hoveredSegment.set($event)"
-                ></app-wheel>
-              } @else if (randomizerMode() === 'slot') {
-                <app-slot-machine [entries]="segments"></app-slot-machine>
-              } @else if (randomizerMode() === 'elimination') {
-                <app-elimination-flash [entries]="segments"></app-elimination-flash>
-              } @else if (randomizerMode() === 'cardflip') {
-                <app-card-flip [entries]="segments"></app-card-flip>
-              } @else {
-                <app-lottery-ball [entries]="segments"></app-lottery-ball>
-              }
-
+            <app-randomizer-stage #stageRef [entries]="segments" (spinFinished)="onSpinFinished()">
               @if (spinError()) {
                 <div class="banner banner-error">{{ spinError() }}</div>
               }
@@ -142,28 +104,7 @@
                   <div class="banner banner-error">{{ cardError() }}</div>
                 }
               }
-            </div>
-
-            @if (segments.length > 0) {
-              <div class="randomizer-panel">
-                <h3 class="randomizer-panel__title">Eligible nominees</h3>
-                <ul class="randomizer-panel__list">
-                  @for (segment of segments; track segment.label; let i = $index) {
-                    <li
-                      class="randomizer-panel__item"
-                      [class.active]="randomizerMode() === 'wheel' && hoveredSegment() === i"
-                      (mouseenter)="onLegendHover(i)"
-                      (mouseleave)="onLegendHover(null)"
-                    >
-                      @if (randomizerMode() === 'wheel' || randomizerMode() === 'lottery') {
-                        <span class="randomizer-panel__swatch" [style.background]="randomizerColor(i)"></span>
-                      }
-                      <span>{{ segment.label }}</span>
-                    </li>
-                  }
-                </ul>
-              </div>
-            }
+            </app-randomizer-stage>
           </div>
         } @else if (currentRound()!.winnerNomineeName) {
           <div class="winner-reveal">
@@ -195,6 +136,59 @@
         </a>
       </div>
     }
+
+    <div class="card preview-card">
+      <h2>🧪 Randomizer preview</h2>
+      <p class="hint">
+        Try out each randomizer style with sample names before using it live — this never touches
+        real rounds or nominations.
+      </p>
+
+      <div class="preview-controls">
+        <label class="preview-controls__count">
+          Sample size
+          <input
+            type="number"
+            min="1"
+            [max]="previewPoolSize"
+            [value]="previewCount()"
+            [disabled]="previewSpinning()"
+            (change)="onPreviewCountChange($any($event.target).value)"
+          />
+        </label>
+        <button
+          type="button"
+          class="btn btn-secondary btn-small"
+          [disabled]="previewSpinning()"
+          (click)="shufflePreviewNames()"
+        >
+          🔀 New random sample
+        </button>
+      </div>
+
+      <app-randomizer-stage
+        #previewStageRef
+        [entries]="previewSegments"
+        (spinFinished)="onPreviewSpinFinished()"
+      >
+        <div class="spin-actions">
+          <button
+            class="btn btn-primary"
+            type="button"
+            [disabled]="previewSpinning() || previewSegments.length === 0"
+            (click)="spinPreview()"
+          >
+            {{ previewSpinning() ? 'Spinning...' : 'Spin (preview)' }}
+          </button>
+        </div>
+
+        @if (previewWinner(); as name) {
+          <div class="winner-reveal">
+            <span>🏆 Preview winner: <strong>{{ name }}</strong></span>
+          </div>
+        }
+      </app-randomizer-stage>
+    </div>
 
     <div class="card new-round-card">
       <h2>Start a new round</h2>

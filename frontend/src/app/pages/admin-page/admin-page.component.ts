@@ -1,24 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../components/avatar/avatar.component';
-import { CardFlipComponent } from '../../components/card-flip/card-flip.component';
-import { EliminationFlashComponent } from '../../components/elimination-flash/elimination-flash.component';
-import { LotteryBallComponent } from '../../components/lottery-ball/lottery-ball.component';
-import { SlotMachineComponent } from '../../components/slot-machine/slot-machine.component';
-import { WheelComponent } from '../../components/wheel/wheel.component';
+import { RandomizerStageComponent } from '../../components/randomizer-stage/randomizer-stage.component';
 import { AnalyticsSummary } from '../../models/analytics.model';
 import { DirectoryImportSummary } from '../../models/directory-person.model';
 import { GRIT_CATEGORY_LABELS, GritCategory } from '../../models/grit-category';
-import {
-  Randomizer,
-  RandomizerEntry,
-  RandomizerMode,
-  randomizerColor,
-} from '../../models/randomizer.model';
-import { Round, RoundStatus, WheelEntry, WheelMode } from '../../models/round.model';
+import { RandomizerEntry } from '../../models/randomizer.model';
+import { Round, RoundStatus, SpinResult, WheelEntry, WheelMode } from '../../models/round.model';
 import { AnalyticsService } from '../../services/analytics.service';
 import { AuthService } from '../../services/auth.service';
 import { CelebrationService } from '../../services/celebration.service';
@@ -26,33 +17,30 @@ import { DirectoryService } from '../../services/directory.service';
 import { RoundService } from '../../services/round.service';
 import { WinnerCardService } from '../../services/winner-card.service';
 
+const PREVIEW_NAME_POOL = [
+  'Alex Rivera', 'Jordan Kim', 'Sam Patel', 'Morgan Chen', 'Taylor Nguyen',
+  'Casey Brooks', 'Riley Johnson', 'Drew Sanders', 'Avery Collins', 'Reese Bennett',
+  'Quinn Foster', 'Skyler Reed', 'Rowan Hayes', 'Emerson Blake', 'Finley Cross',
+  'Harper Doyle', 'Sawyer Grant', 'Elliot Price', 'Marlowe Stone', 'Peyton Wells',
+  'Dakota Shaw', 'Kendall Ford', 'Blake Sullivan', 'Cameron Ortiz', 'Jamie Whitfield',
+  'Morgan Delgado', 'Charlie Novak', 'Frankie Marsh', 'Robin Castillo', 'Ash Kingston',
+  'Toni Marlowe', 'Val Ashford', 'Remy Donovan', 'Sage Whitmore', 'Lane Prescott',
+  'Bailey Emerson', 'Sydney Holt', 'Micah Vance', 'Noel Ramsey', 'Jules Winslow',
+  'Devon Ashby', 'Reign Calloway', 'Shiloh Merritt', 'Justice Blackwood', 'Rory Fenwick',
+  'Wren Abernathy', 'Story Caldwell', 'Indigo Beaumont', 'Phoenix Radcliffe', 'Sunny Vaughn',
+];
+
 @Component({
   selector: 'app-admin-page',
   standalone: true,
-  imports: [
-    ReactiveFormsModule,
-    DatePipe,
-    RouterLink,
-    WheelComponent,
-    SlotMachineComponent,
-    EliminationFlashComponent,
-    CardFlipComponent,
-    LotteryBallComponent,
-    AvatarComponent,
-  ],
+  imports: [ReactiveFormsModule, DatePipe, RouterLink, RandomizerStageComponent, AvatarComponent],
   templateUrl: './admin-page.component.html',
   styleUrl: './admin-page.component.scss',
 })
-export class AdminPageComponent implements OnInit {
-  @ViewChild(WheelComponent) wheel?: WheelComponent;
-  @ViewChild(SlotMachineComponent) slotMachine?: SlotMachineComponent;
-  @ViewChild(EliminationFlashComponent) eliminationFlash?: EliminationFlashComponent;
-  @ViewChild(CardFlipComponent) cardFlip?: CardFlipComponent;
-  @ViewChild(LotteryBallComponent) lotteryBall?: LotteryBallComponent;
-
-  readonly randomizerColor = randomizerColor;
-  readonly randomizerMode = signal<RandomizerMode>('wheel');
-  readonly hoveredSegment = signal<number | null>(null);
+export class AdminPageComponent implements OnInit, OnDestroy {
+  @ViewChild('stageRef') private stage?: RandomizerStageComponent;
+  @ViewChild('previewStageRef') private previewStage?: RandomizerStageComponent;
+  @ViewChild('presentationStageEl') private presentationStageEl?: ElementRef<HTMLElement>;
 
   readonly RoundStatus = RoundStatus;
   readonly WheelMode = WheelMode;
@@ -95,6 +83,16 @@ export class AdminPageComponent implements OnInit {
   readonly directoryImportError = signal<string | null>(null);
   readonly directoryImportSummary = signal<DirectoryImportSummary | null>(null);
 
+  readonly presentationMode = signal(false);
+  private pendingSpinResult: SpinResult | null = null;
+
+  readonly previewCount = signal(10);
+  readonly previewNames = signal<string[]>([]);
+  readonly previewSpinning = signal(false);
+  readonly previewWinner = signal<string | null>(null);
+  readonly previewPoolSize = PREVIEW_NAME_POOL.length;
+  private previewTargetIndex: number | null = null;
+
   get segments(): RandomizerEntry[] {
     return this.wheelEntries().map((e) => ({
       label: e.nomineeName,
@@ -102,39 +100,45 @@ export class AdminPageComponent implements OnInit {
     }));
   }
 
-  private get activeRandomizer(): Randomizer | undefined {
-    switch (this.randomizerMode()) {
-      case 'wheel':
-        return this.wheel;
-      case 'slot':
-        return this.slotMachine;
-      case 'elimination':
-        return this.eliminationFlash;
-      case 'cardflip':
-        return this.cardFlip;
-      case 'lottery':
-        return this.lotteryBall;
-    }
-  }
-
-  setRandomizerMode(mode: RandomizerMode): void {
-    this.randomizerMode.set(mode);
-    this.hoveredSegment.set(null);
-  }
-
-  onLegendHover(index: number | null): void {
-    if (this.randomizerMode() === 'wheel') {
-      this.hoveredSegment.set(index);
-    }
+  get previewSegments(): RandomizerEntry[] {
+    return this.previewNames().map((label) => ({ label }));
   }
 
   async ngOnInit(): Promise<void> {
+    document.addEventListener('fullscreenchange', this.onFullscreenChange);
+    this.shufflePreviewNames();
+
     await this.authService.ready;
     if (this.authService.isAdmin()) {
       this.loadEverything();
       this.loadAnalytics();
       this.loadDirectoryCount();
     }
+  }
+
+  ngOnDestroy(): void {
+    document.removeEventListener('fullscreenchange', this.onFullscreenChange);
+  }
+
+  private readonly onFullscreenChange = (): void => {
+    this.presentationMode.set(!!document.fullscreenElement);
+  };
+
+  async enterPresentationMode(): Promise<void> {
+    const el = this.presentationStageEl?.nativeElement;
+    try {
+      await el?.requestFullscreen();
+    } catch {
+      // Fullscreen can be blocked (e.g. embedded contexts); still show the decluttered view.
+      this.presentationMode.set(true);
+    }
+  }
+
+  async exitPresentationMode(): Promise<void> {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+    this.presentationMode.set(false);
   }
 
   loadDirectoryCount(): void {
@@ -226,11 +230,7 @@ export class AdminPageComponent implements OnInit {
           this.currentRound.set(round);
           this.winner.set(null);
           this.wheelEntries.set([]);
-          this.wheel?.reset();
-          this.slotMachine?.reset();
-          this.eliminationFlash?.reset();
-          this.cardFlip?.reset();
-          this.lotteryBall?.reset();
+          this.stage?.reset();
           this.loadEverything();
           this.loadAnalytics();
         },
@@ -251,28 +251,70 @@ export class AdminPageComponent implements OnInit {
     this.roundService.spin(round.id, this.weightedWheel()).subscribe({
       next: (result) => {
         this.wheelEntries.set(result.entries);
+        this.pendingSpinResult = result;
         const index = result.entries.findIndex(
           (e) => e.nomineeEmail === result.winner.nomineeEmail,
         );
 
         setTimeout(() => {
-          this.activeRandomizer?.spinTo(index < 0 ? 0 : index);
+          this.stage?.spinTo(index < 0 ? 0 : index);
         }, 50);
-
-        const finishSub = this.activeRandomizer?.spinFinished.subscribe(() => {
-          this.currentRound.set(result.round);
-          this.winner.set(result.winner);
-          this.spinning.set(false);
-          this.celebrationService.celebrate();
-          this.loadEverything();
-          finishSub?.unsubscribe();
-        });
       },
       error: (err: HttpErrorResponse) => {
         this.spinning.set(false);
         this.spinError.set(err.error?.message ?? 'Unable to spin the wheel.');
       },
     });
+  }
+
+  onSpinFinished(): void {
+    const result = this.pendingSpinResult;
+    if (!result) return;
+    this.pendingSpinResult = null;
+    this.currentRound.set(result.round);
+    this.winner.set(result.winner);
+    this.spinning.set(false);
+    this.celebrationService.celebrate();
+    this.loadEverything();
+  }
+
+  shufflePreviewNames(): void {
+    const count = Math.max(1, Math.min(this.previewPoolSize, Math.round(this.previewCount())));
+    const pool = [...PREVIEW_NAME_POOL];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    this.previewNames.set(pool.slice(0, count));
+    this.previewWinner.set(null);
+  }
+
+  onPreviewCountChange(value: string): void {
+    const parsed = parseInt(value, 10);
+    this.previewCount.set(Number.isFinite(parsed) ? parsed : 1);
+    this.shufflePreviewNames();
+  }
+
+  spinPreview(): void {
+    if (this.previewSpinning() || this.previewNames().length === 0) return;
+    this.previewSpinning.set(true);
+    this.previewWinner.set(null);
+
+    const targetIndex = Math.floor(Math.random() * this.previewNames().length);
+    this.previewTargetIndex = targetIndex;
+
+    setTimeout(() => {
+      this.previewStage?.spinTo(targetIndex);
+    }, 50);
+  }
+
+  onPreviewSpinFinished(): void {
+    const index = this.previewTargetIndex;
+    this.previewSpinning.set(false);
+    this.previewTargetIndex = null;
+    if (index !== null) {
+      this.previewWinner.set(this.previewNames()[index] ?? null);
+    }
   }
 
   async shareWinnerCard(name: string, email: string): Promise<void> {
