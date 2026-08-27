@@ -31,30 +31,28 @@
   transition: transform 4.1s cubic-bezier(0.15, 0.65, 0.1, 1);
 }
 
+.segment-arm {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
 .segment-label {
   position: absolute;
   top: 0;
-  left: 50%;
-  width: 50%;
-  height: 50%;
-  transform-origin: 0% 100%;
-  display: flex;
-  justify-content: center;
-  padding-top: 10px;
-  pointer-events: none;
-
-  span {
-    display: inline-block;
-    max-width: 110px;
-    font-size: 0.92rem;
-    font-weight: 800;
-    color: #fff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  left: 0;
+  display: inline-block;
+  width: 84px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  text-align: center;
+  line-height: 1.15;
+  overflow-wrap: break-word;
 }
 
 .hub {

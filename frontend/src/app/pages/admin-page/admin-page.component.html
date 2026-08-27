@@ -43,7 +43,43 @@
             Weight slices by number of nominations (instead of equal weight per person)
           </label>
 
-          <app-wheel [segments]="segments"></app-wheel>
+          <div class="randomizer-toggle">
+            <span class="randomizer-toggle__label">Randomizer style</span>
+            <button
+              type="button"
+              class="randomizer-toggle__btn"
+              [class.active]="randomizerMode() === 'wheel'"
+              [disabled]="spinning()"
+              (click)="randomizerMode.set('wheel')"
+            >
+              🎡 Wheel
+            </button>
+            <button
+              type="button"
+              class="randomizer-toggle__btn"
+              [class.active]="randomizerMode() === 'slot'"
+              [disabled]="spinning()"
+              (click)="randomizerMode.set('slot')"
+            >
+              🎰 Slot
+            </button>
+          </div>
+
+          @if (randomizerMode() === 'wheel') {
+            <app-wheel [segments]="segments"></app-wheel>
+            @if (segments.length > 0) {
+              <div class="wheel-legend">
+                @for (segment of segments; track segment.label; let i = $index) {
+                  <div class="wheel-legend__item">
+                    <span class="wheel-legend__swatch" [style.background]="randomizerColor(i)"></span>
+                    <span>{{ segment.label }}</span>
+                  </div>
+                }
+              </div>
+            }
+          } @else {
+            <app-slot-machine [entries]="segments"></app-slot-machine>
+          }
 
           @if (spinError()) {
             <div class="banner banner-error">{{ spinError() }}</div>

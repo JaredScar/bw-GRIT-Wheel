@@ -1,9 +1,11 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Randomizer, RandomizerEntry, randomizerColor } from '../../models/randomizer.model';
 
-export interface WheelSegment {
-  label: string;
-  weight?: number;
-}
+/** @deprecated use `RandomizerEntry` from `models/randomizer.model` instead. */
+export type WheelSegment = RandomizerEntry;
+
+/** Matches `.wheel-wrap`'s `min(360px, 80vw)` sizing so labels stay responsive. */
+const LABEL_RADIUS = 'min(122px, 27vw)';
 
 @Component({
   selector: 'app-wheel',
@@ -11,26 +13,15 @@ export interface WheelSegment {
   templateUrl: './wheel.component.html',
   styleUrl: './wheel.component.scss',
 })
-export class WheelComponent {
-  @Input() segments: WheelSegment[] = [];
+export class WheelComponent implements Randomizer {
+  @Input() segments: RandomizerEntry[] = [];
   @Output() spinFinished = new EventEmitter<number>();
 
   rotation = 0;
   spinning = false;
 
-  private readonly colors = [
-    '#175ddc',
-    '#1a1c21',
-    '#0b826a',
-    '#e07a1f',
-    '#6c4de6',
-    '#b7280c',
-    '#0f9bd7',
-    '#8a6300',
-  ];
-
   segmentColor(index: number): string {
-    return this.colors[index % this.colors.length];
+    return randomizerColor(index);
   }
 
   /** Cumulative start angles (in degrees) for each segment, weighted by segment.weight (default 1). */
@@ -60,8 +51,22 @@ export class WheelComponent {
     return `conic-gradient(${stops.join(', ')})`;
   }
 
+  /**
+   * Positions the (zero-size) arm at the segment's midpoint angle and radius. Rotate is
+   * applied before the translate so the point swings to the right spot on the circle;
+   * see `labelTransform` for how the label itself stays upright despite this rotation.
+   */
+  armTransform(index: number): string {
+    return `rotate(${this.segmentMidAngle(index)}deg) translateY(calc(-1 * ${LABEL_RADIUS}))`;
+  }
+
+  /**
+   * Counter-rotates the label by the same amount the arm rotated it by, so the text
+   * always reads horizontally regardless of how few/wide the segments are — a label
+   * rotated to match a 180deg segment would otherwise render sideways.
+   */
   labelTransform(index: number): string {
-    return `rotate(${this.segmentMidAngle(index)}deg)`;
+    return `translate(-50%, -50%) rotate(${-this.segmentMidAngle(index)}deg)`;
   }
 
   spinTo(index: number, extraSpins = 6): void {

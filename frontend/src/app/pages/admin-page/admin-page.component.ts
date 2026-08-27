@@ -4,10 +4,12 @@ import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../components/avatar/avatar.component';
-import { WheelComponent, WheelSegment } from '../../components/wheel/wheel.component';
+import { SlotMachineComponent } from '../../components/slot-machine/slot-machine.component';
+import { WheelComponent } from '../../components/wheel/wheel.component';
 import { AnalyticsSummary } from '../../models/analytics.model';
 import { DirectoryImportSummary } from '../../models/directory-person.model';
 import { GRIT_CATEGORY_LABELS, GritCategory } from '../../models/grit-category';
+import { Randomizer, RandomizerEntry, randomizerColor } from '../../models/randomizer.model';
 import { Round, RoundStatus, WheelEntry, WheelMode } from '../../models/round.model';
 import { AnalyticsService } from '../../services/analytics.service';
 import { AuthService } from '../../services/auth.service';
@@ -19,12 +21,23 @@ import { WinnerCardService } from '../../services/winner-card.service';
 @Component({
   selector: 'app-admin-page',
   standalone: true,
-  imports: [ReactiveFormsModule, DatePipe, RouterLink, WheelComponent, AvatarComponent],
+  imports: [
+    ReactiveFormsModule,
+    DatePipe,
+    RouterLink,
+    WheelComponent,
+    SlotMachineComponent,
+    AvatarComponent,
+  ],
   templateUrl: './admin-page.component.html',
   styleUrl: './admin-page.component.scss',
 })
 export class AdminPageComponent implements OnInit {
   @ViewChild(WheelComponent) wheel?: WheelComponent;
+  @ViewChild(SlotMachineComponent) slotMachine?: SlotMachineComponent;
+
+  readonly randomizerColor = randomizerColor;
+  readonly randomizerMode = signal<'wheel' | 'slot'>('wheel');
 
   readonly RoundStatus = RoundStatus;
   readonly WheelMode = WheelMode;
@@ -67,11 +80,15 @@ export class AdminPageComponent implements OnInit {
   readonly directoryImportError = signal<string | null>(null);
   readonly directoryImportSummary = signal<DirectoryImportSummary | null>(null);
 
-  get segments(): WheelSegment[] {
+  get segments(): RandomizerEntry[] {
     return this.wheelEntries().map((e) => ({
       label: e.nomineeName,
       weight: this.weightedWheel() ? e.nominationIds.length : 1,
     }));
+  }
+
+  private get activeRandomizer(): Randomizer | undefined {
+    return this.randomizerMode() === 'wheel' ? this.wheel : this.slotMachine;
   }
 
   async ngOnInit(): Promise<void> {
@@ -173,6 +190,7 @@ export class AdminPageComponent implements OnInit {
           this.winner.set(null);
           this.wheelEntries.set([]);
           this.wheel?.reset();
+          this.slotMachine?.reset();
           this.loadEverything();
           this.loadAnalytics();
         },
@@ -198,10 +216,10 @@ export class AdminPageComponent implements OnInit {
         );
 
         setTimeout(() => {
-          this.wheel?.spinTo(index < 0 ? 0 : index);
+          this.activeRandomizer?.spinTo(index < 0 ? 0 : index);
         }, 50);
 
-        const finishSub = this.wheel?.spinFinished.subscribe(() => {
+        const finishSub = this.activeRandomizer?.spinFinished.subscribe(() => {
           this.currentRound.set(result.round);
           this.winner.set(result.winner);
           this.spinning.set(false);
