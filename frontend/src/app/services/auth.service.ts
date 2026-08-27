@@ -32,4 +32,12 @@ export class AuthService {
     await firstValueFrom(this.http.post(`${this.baseUrl}/logout`, {}));
     this.currentUser.set(null);
   }
+
+  async updateDisplayName(name: string): Promise<SessionUser> {
+    const user = await firstValueFrom(
+      this.http.patch<SessionUser>(`${this.baseUrl}/me`, { name }),
+    );
+    this.currentUser.set(user);
+    return user;
+  }
 }

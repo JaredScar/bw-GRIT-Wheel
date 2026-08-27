@@ -1,10 +1,11 @@
-import { Controller, Get, HttpCode, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import type { CookieOptions, Request, Response } from 'express';
 import { isBitwardenEmail } from '../common/bitwarden-email.validator';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
+import { UpdateDisplayNameDto } from './dto/update-display-name.dto';
 import { GoogleOAuthService } from './google-oauth.service';
 import { SESSION_COOKIE_NAME } from './jwt-auth.guard';
 import { Public } from './public.decorator';
@@ -80,6 +81,12 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: SessionUser) {
     return user;
+  }
+
+  @Patch('me')
+  async updateMe(@Body() dto: UpdateDisplayNameDto, @CurrentUser() user: SessionUser) {
+    const updated = await this.authService.updateDisplayName(user.id, dto.name);
+    return this.authService.toSessionUser(updated);
   }
 
   @Post('logout')

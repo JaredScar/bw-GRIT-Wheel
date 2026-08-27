@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import type { SessionUser } from '../auth/session-user';
 import { GritCategory } from '../common/grit-category.enum';
 import { DirectoryService } from '../directory/directory.service';
 import { SlackNotificationService } from '../notifications/slack-notification.service';
@@ -41,7 +42,7 @@ export class NominationsService {
     private readonly directoryService: DirectoryService,
   ) {}
 
-  async create(dto: CreateNominationDto, nominatorEmail: string): Promise<PublicNomination> {
+  async create(dto: CreateNominationDto, nominator: SessionUser): Promise<PublicNomination> {
     const nominee = await this.directoryService.findByEmail(dto.nomineeEmail);
     if (!nominee) {
       throw new BadRequestException('Please select the nominee from the list');
@@ -50,8 +51,10 @@ export class NominationsService {
     const currentRound = await this.roundsService.getOrCreateCurrentOpenRound();
 
     const nomination = this.nominationsRepository.create({
-      nominatorName: dto.nominatorName.trim(),
-      nominatorEmail: nominatorEmail.trim().toLowerCase(),
+      // Taken from the nominator's own signed-in account rather than a free-text
+      // field, so it can't drift from a typo and always matches who they really are.
+      nominatorName: nominator.name?.trim() || nominator.email,
+      nominatorEmail: nominator.email.trim().toLowerCase(),
       isAnonymous: dto.isAnonymous ?? false,
       nomineeName: nominee.name,
       nomineeEmail: nominee.email,

@@ -3,23 +3,25 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AppModule } from './app.module';
 import { GritCategory } from './common/grit-category.enum';
-import { DirectoryPerson } from './directory/directory-person.entity';
+import { DirectoryService } from './directory/directory.service';
 import { Nomination } from './nominations/nomination.entity';
 import { Round, RoundStatus } from './rounds/round.entity';
 import { RoundsService } from './rounds/rounds.service';
+import { EMPLOYEE_ROSTER_CSV } from './seed-data/employee-roster';
 
 /**
- * Example/demo data for a handful of "completed" past rounds (with winners),
- * so a fresh install has something to look at right away. Run with
- * `npm run seed` (after `npm run build`) or `node dist/seed.js` inside the
- * backend container.
+ * Demo/history data for a fresh install: the real company roster (so the nominate
+ * form's directory picker has names to search against) plus a handful of "We Have
+ * GRIT" rounds pulled from real past Slack winner announcements. Run with
+ * `npm run seed` (after `npm run build`) or `node dist/seed.js` inside the backend
+ * container.
  *
- * All names, emails, and nomination text below are fictional placeholders —
- * replace them with your own organization's real history if you'd like, or
- * skip this script entirely: import a real CSV roster from `/admin` and
- * start creating rounds from there instead.
+ * The exact year for each round below wasn't visible in the source Slack messages
+ * (only a time-of-day), so 2025 is a placeholder — correct the `eventDate` values if
+ * that's wrong.
  *
- * Safe to re-run: rounds are matched/skipped by title.
+ * Safe to re-run: the roster import upserts by email, and rounds are matched/skipped
+ * by title.
  */
 
 const ARCHIVE_NOMINATOR_NAME = 'GRIT Award Archive';
@@ -43,72 +45,58 @@ const NEXT_OPEN_ROUND_TITLE = 'Next All-Hands';
 
 const seedRounds: SeedRound[] = [
   {
-    title: 'Example Round 1',
-    eventDate: '2025-01-15',
-    winnerEmail: 'alex.rivera@bitwarden.com',
+    title: 'March 2025 We Have GRIT',
+    eventDate: '2025-03-01',
+    winnerEmail: 'dbrothers@bitwarden.com',
     nominations: [
       {
-        nomineeName: 'Alex Rivera',
-        nomineeEmail: 'alex.rivera@bitwarden.com',
-        gritCategories: [GritCategory.INNOVATION],
-        reason:
-          'Alex proposed a creative solution to a long-standing bottleneck in our release process and volunteered to prototype it over a weekend. The idea is now part of how the whole team ships.',
-      },
-    ],
-  },
-  {
-    title: 'Example Round 2',
-    eventDate: '2025-02-12',
-    winnerEmail: 'jordan.kim@bitwarden.com',
-    nominations: [
-      {
-        nomineeName: 'Jordan Kim',
-        nomineeEmail: 'jordan.kim@bitwarden.com',
+        nomineeName: 'Dave Brothers',
+        nomineeEmail: 'dbrothers@bitwarden.com',
         gritCategories: [GritCategory.RESPONSIBILITY],
         reason:
-          'Jordan owned a tricky customer-facing bug end to end, including the uncomfortable parts of communicating the impact and timeline, and saw it through to a real fix instead of a quick patch.',
+          "Dave exemplifies what it means to do the right thing for our customers, even when the work is complex and unglamorous. Over the past several months, Dave led the effort to resolve a long-standing limitation in our single sign-on offering: our SSO implementation could not horizontally scale in the Bitwarden cloud due to a data synchronization constraint across running instances. This was a known risk for years, and Dave took ownership of delivering the solution. Working with the Auth team (Todd, Brad, and Ope), Dave drove the rollout of a new caching pattern that now allows our SSO infrastructure to scale out dynamically as traffic demands. He didn't cut corners or settle for a workaround -- he delivered the architecture our customers needed for reliable, scalable access to their vaults. What makes this especially significant: SSO was the final platform component that lacked horizontal scaling capabilities. By completing this work, Dave helped ensure that our entire platform -- cloud and self-host -- can now scale to meet the needs of any customer. That's the definition of delivering our best work and doing right by our users. Dave took responsibility for a hard, high-stakes problem and saw it through to a result that makes Bitwarden more reliable at scale for every customer we serve.",
       },
     ],
   },
   {
-    title: 'Example Round 3',
-    eventDate: '2025-03-19',
-    winnerEmail: 'sam.patel@bitwarden.com',
+    title: 'June 2025 We Have GRIT',
+    eventDate: '2025-06-01',
+    winnerEmail: 'fmaccaroni@bitwarden.com',
     nominations: [
       {
-        nomineeName: 'Sam Patel',
-        nomineeEmail: 'sam.patel@bitwarden.com',
+        nomineeName: 'Federico Maccaroni',
+        nomineeEmail: 'fmaccaroni@bitwarden.com',
         gritCategories: [GritCategory.GRIT, GritCategory.GRATITUDE],
         reason:
-          'Sam kept pushing through a genuinely difficult migration project without losing momentum or morale for the rest of the team, and was always the first to jump in and help teammates with a great attitude.',
+          "Rico embraces GRIT values here at Bitwarden -his daily work activities and approach includes passion, perseverance, and adaptability to help push Bitwarden forward. Rico is truly an awesome teammate. He's responsive, passionate, and extremely helpful. There's a reason the chat goes wild for Rico. He is someone I'm grateful to have around.",
       },
     ],
   },
   {
-    title: 'Example Round 4',
-    eventDate: '2025-04-16',
-    winnerEmail: 'morgan.chen@bitwarden.com',
+    title: 'July 2025 We Have GRIT',
+    eventDate: '2025-07-01',
+    winnerEmail: 'skakar@bitwarden.com',
     nominations: [
       {
-        nomineeName: 'Morgan Chen',
-        nomineeEmail: 'morgan.chen@bitwarden.com',
-        gritCategories: [GritCategory.TRUST, GritCategory.GRIT],
+        nomineeName: 'Sami Kakar',
+        nomineeEmail: 'skakar@bitwarden.com',
+        gritCategories: [GritCategory.GRIT, GritCategory.TRUST],
         reason:
-          'Morgan is transparent with stakeholders even when the news is bad, and showed real perseverance getting a stalled project unstuck after months of it being deprioritized.',
+          "Sami shows passion, perseverance, and adaptability to help push Bitwarden forward. Sami jumps in to help and is a true partner that I can count on.",
       },
     ],
   },
   {
-    title: 'Example Round 5',
-    eventDate: '2025-05-14',
-    winnerEmail: 'taylor.nguyen@bitwarden.com',
+    title: 'August 2025 We Have GRIT',
+    eventDate: '2025-08-01',
+    winnerEmail: 'lleigh@bitwarden.com',
     nominations: [
       {
-        nomineeName: 'Taylor Nguyen',
-        nomineeEmail: 'taylor.nguyen@bitwarden.com',
+        nomineeName: 'Lima Leigh',
+        nomineeEmail: 'lleigh@bitwarden.com',
         gritCategories: [GritCategory.RESPONSIBILITY],
         reason:
-          'Taylor took ownership of coordinating a cross-team project with several external vendors and kept everyone aligned through a chaotic timeline.',
+          "Lima's a consummate team player on the Comms team and annually takes the initiative to spearhead the Bitwarden event strategy for RSA and the Open Source Security Summit. She's always willing to lend a helping hand on ancillary projects, has a discerning eye for editing and continues to be an excellent project manager wrangling multiple vendors and stakeholders for streamlined event orchestration.",
       },
     ],
   },
@@ -119,24 +107,13 @@ async function run(): Promise<void> {
 
   const roundRepo = app.get<Repository<Round>>(getRepositoryToken(Round));
   const nominationRepo = app.get<Repository<Nomination>>(getRepositoryToken(Nomination));
-  const directoryRepo = app.get<Repository<DirectoryPerson>>(getRepositoryToken(DirectoryPerson));
+  const directoryService = app.get(DirectoryService);
   const roundsService = app.get(RoundsService);
 
-  // Real deployments populate this via CSV import from /admin; the seed script inserts
-  // its own fictional nominees directly so the example rounds below have someone valid
-  // to point at.
-  const seedPeople = new Map<string, string>();
-  for (const seed of seedRounds) {
-    for (const nomination of seed.nominations) {
-      seedPeople.set(nomination.nomineeEmail, nomination.nomineeName);
-    }
-  }
-  for (const [email, name] of seedPeople) {
-    const existing = await directoryRepo.findOne({ where: { email } });
-    if (!existing) {
-      await directoryRepo.save(directoryRepo.create({ email, name }));
-    }
-  }
+  const rosterSummary = await directoryService.importFromCsv(EMPLOYEE_ROSTER_CSV);
+  console.log(
+    `Imported employee roster: ${rosterSummary.imported} imported, ${rosterSummary.updated} updated, ${rosterSummary.skipped} skipped of ${rosterSummary.totalRows} rows`,
+  );
 
   for (const seed of seedRounds) {
     const existing = await roundRepo.findOne({ where: { title: seed.title } });

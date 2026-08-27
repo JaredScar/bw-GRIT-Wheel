@@ -23,15 +23,12 @@
         <div class="banner banner-error">{{ errorMessage() }}</div>
       }
 
-      <p class="hint">Nominating as <strong>{{ authService.currentUser()?.email }}</strong></p>
-
-      <div class="form-field">
-        <label for="nominatorName">Your name</label>
-        <input id="nominatorName" type="text" formControlName="nominatorName" placeholder="Jane Doe" />
-        @if (form.get('nominatorName')?.invalid && form.get('nominatorName')?.touched) {
-          <span class="error">Your name is required.</span>
+      <p class="hint">
+        Nominating as <strong>{{ nominatorDisplayName }}</strong>
+        @if (authService.currentUser()?.name) {
+          ({{ authService.currentUser()?.email }})
         }
-      </div>
+      </p>
 
       <div class="checkbox-field">
         <input id="isAnonymous" type="checkbox" formControlName="isAnonymous" />

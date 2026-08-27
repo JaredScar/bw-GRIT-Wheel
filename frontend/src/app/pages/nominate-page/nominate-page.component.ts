@@ -62,12 +62,16 @@ export class NominatePageComponent implements OnInit {
   });
 
   readonly form = this.fb.group({
-    nominatorName: ['', [Validators.required, Validators.maxLength(120)]],
     isAnonymous: [false],
     nomineeEmail: ['', [Validators.required]],
     gritCategories: this.fb.control<GritCategory[]>([], [minSelectionValidator(1)]),
     reason: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(2000)]],
   });
+
+  get nominatorDisplayName(): string {
+    const user = this.authService.currentUser();
+    return user?.name || user?.email || '';
+  }
 
   ngOnInit(): void {
     this.directoryService.listAll().subscribe({
@@ -130,7 +134,6 @@ export class NominatePageComponent implements OnInit {
 
     this.nominationService
       .create({
-        nominatorName: value.nominatorName!.trim(),
         isAnonymous: !!value.isAnonymous,
         nomineeEmail: value.nomineeEmail!,
         gritCategories: value.gritCategories!,

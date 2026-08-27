@@ -1,21 +1,7 @@
-import {
-  ArrayMinSize,
-  IsArray,
-  IsBoolean,
-  IsEmail,
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { ArrayMinSize, IsArray, IsBoolean, IsEmail, IsEnum, IsNotEmpty, IsOptional, MaxLength, MinLength } from 'class-validator';
 import { GritCategory } from '../../common/grit-category.enum';
 
 export class CreateNominationDto {
-  @IsNotEmpty({ message: 'Your name is required' })
-  @MaxLength(120)
-  nominatorName: string;
-
   @IsOptional()
   @IsBoolean()
   isAnonymous?: boolean;

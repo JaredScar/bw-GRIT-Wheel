@@ -11,7 +11,7 @@ export class NominationsController {
 
   @Post()
   create(@Body() dto: CreateNominationDto, @CurrentUser() user: SessionUser) {
-    return this.nominationsService.create(dto, user.email);
+    return this.nominationsService.create(dto, user);
   }
 
   @Get()

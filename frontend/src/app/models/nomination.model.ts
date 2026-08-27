@@ -21,7 +21,6 @@ export interface ToggleUpvoteResult {
 }
 
 export interface CreateNominationPayload {
-  nominatorName: string;
   isAnonymous: boolean;
   nomineeEmail: string;
   gritCategories: GritCategory[];
