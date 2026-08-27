@@ -1,5 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  inject,
+  OnDestroy,
+  OnInit,
+  signal,
+  ViewChild,
+  WritableSignal,
+} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -8,27 +17,16 @@ import { RandomizerStageComponent } from '../../components/randomizer-stage/rand
 import { AnalyticsSummary } from '../../models/analytics.model';
 import { DirectoryImportSummary } from '../../models/directory-person.model';
 import { GRIT_CATEGORY_LABELS, GritCategory } from '../../models/grit-category';
+import { Nomination } from '../../models/nomination.model';
 import { RandomizerEntry } from '../../models/randomizer.model';
 import { Round, RoundStatus, SpinResult, WheelEntry, WheelMode } from '../../models/round.model';
 import { AnalyticsService } from '../../services/analytics.service';
 import { AuthService } from '../../services/auth.service';
 import { CelebrationService } from '../../services/celebration.service';
 import { DirectoryService } from '../../services/directory.service';
+import { NominationService } from '../../services/nomination.service';
 import { RoundService } from '../../services/round.service';
 import { WinnerCardService } from '../../services/winner-card.service';
-
-const PREVIEW_NAME_POOL = [
-  'Alex Rivera', 'Jordan Kim', 'Sam Patel', 'Morgan Chen', 'Taylor Nguyen',
-  'Casey Brooks', 'Riley Johnson', 'Drew Sanders', 'Avery Collins', 'Reese Bennett',
-  'Quinn Foster', 'Skyler Reed', 'Rowan Hayes', 'Emerson Blake', 'Finley Cross',
-  'Harper Doyle', 'Sawyer Grant', 'Elliot Price', 'Marlowe Stone', 'Peyton Wells',
-  'Dakota Shaw', 'Kendall Ford', 'Blake Sullivan', 'Cameron Ortiz', 'Jamie Whitfield',
-  'Morgan Delgado', 'Charlie Novak', 'Frankie Marsh', 'Robin Castillo', 'Ash Kingston',
-  'Toni Marlowe', 'Val Ashford', 'Remy Donovan', 'Sage Whitmore', 'Lane Prescott',
-  'Bailey Emerson', 'Sydney Holt', 'Micah Vance', 'Noel Ramsey', 'Jules Winslow',
-  'Devon Ashby', 'Reign Calloway', 'Shiloh Merritt', 'Justice Blackwood', 'Rory Fenwick',
-  'Wren Abernathy', 'Story Caldwell', 'Indigo Beaumont', 'Phoenix Radcliffe', 'Sunny Vaughn',
-];
 
 @Component({
   selector: 'app-admin-page',
@@ -39,7 +37,6 @@ const PREVIEW_NAME_POOL = [
 })
 export class AdminPageComponent implements OnInit, OnDestroy {
   @ViewChild('stageRef') private stage?: RandomizerStageComponent;
-  @ViewChild('previewStageRef') private previewStage?: RandomizerStageComponent;
   @ViewChild('presentationStageEl') private presentationStageEl?: ElementRef<HTMLElement>;
 
   readonly RoundStatus = RoundStatus;
@@ -48,6 +45,7 @@ export class AdminPageComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   readonly authService = inject(AuthService);
   private readonly roundService = inject(RoundService);
+  private readonly nominationService = inject(NominationService);
   private readonly celebrationService = inject(CelebrationService);
   private readonly winnerCardService = inject(WinnerCardService);
   private readonly analyticsService = inject(AnalyticsService);
@@ -68,11 +66,17 @@ export class AdminPageComponent implements OnInit, OnDestroy {
   readonly spinning = signal(false);
   readonly spinError = signal<string | null>(null);
   readonly winner = signal<WheelEntry | null>(null);
-  readonly winningReasons = signal<string[]>([]);
   readonly allRounds = signal<Round[]>([]);
   readonly weightedWheel = signal(false);
   readonly sharingCard = signal(false);
   readonly cardError = signal<string | null>(null);
+
+  readonly winnerNominations = signal<Nomination[]>([]);
+
+  readonly testSpinning = signal(false);
+  readonly testResult = signal<string | null>(null);
+  readonly testResultNominations = signal<Nomination[]>([]);
+  private testTargetIndex: number | null = null;
 
   readonly analytics = signal<AnalyticsSummary | null>(null);
   readonly loadingAnalytics = signal(false);
@@ -86,13 +90,6 @@ export class AdminPageComponent implements OnInit, OnDestroy {
   readonly presentationMode = signal(false);
   private pendingSpinResult: SpinResult | null = null;
 
-  readonly previewCount = signal(10);
-  readonly previewNames = signal<string[]>([]);
-  readonly previewSpinning = signal(false);
-  readonly previewWinner = signal<string | null>(null);
-  readonly previewPoolSize = PREVIEW_NAME_POOL.length;
-  private previewTargetIndex: number | null = null;
-
   get segments(): RandomizerEntry[] {
     return this.wheelEntries().map((e) => ({
       label: e.nomineeName,
@@ -100,13 +97,8 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     }));
   }
 
-  get previewSegments(): RandomizerEntry[] {
-    return this.previewNames().map((label) => ({ label }));
-  }
-
   async ngOnInit(): Promise<void> {
     document.addEventListener('fullscreenchange', this.onFullscreenChange);
-    this.shufflePreviewNames();
 
     await this.authService.ready;
     if (this.authService.isAdmin()) {
@@ -194,6 +186,12 @@ export class AdminPageComponent implements OnInit, OnDestroy {
         this.currentRound.set(round);
         this.winner.set(null);
         this.loadWheelEntries(round.id);
+
+        if (round.status === RoundStatus.COMPLETED && round.winnerNomineeEmail) {
+          this.loadNominationsFor(round.id, round.winnerNomineeEmail, this.winnerNominations);
+        } else {
+          this.winnerNominations.set([]);
+        }
       },
       error: () => this.loadingRound.set(false),
     });
@@ -207,6 +205,18 @@ export class AdminPageComponent implements OnInit, OnDestroy {
         this.loadingRound.set(false);
       },
       error: () => this.loadingRound.set(false),
+    });
+  }
+
+  private loadNominationsFor(
+    roundId: string,
+    nomineeEmail: string,
+    target: WritableSignal<Nomination[]>,
+  ): void {
+    target.set([]);
+    this.nominationService.findAll({ roundId, nomineeEmail }).subscribe({
+      next: (nominations) => target.set(nominations),
+      error: () => target.set([]),
     });
   }
 
@@ -229,7 +239,10 @@ export class AdminPageComponent implements OnInit, OnDestroy {
           this.newRoundForm.reset();
           this.currentRound.set(round);
           this.winner.set(null);
+          this.winnerNominations.set([]);
           this.wheelEntries.set([]);
+          this.testResult.set(null);
+          this.testResultNominations.set([]);
           this.stage?.reset();
           this.loadEverything();
           this.loadAnalytics();
@@ -246,6 +259,8 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     if (!round || this.spinning()) return;
 
     this.spinError.set(null);
+    this.testResult.set(null);
+    this.testResultNominations.set([]);
     this.spinning.set(true);
 
     this.roundService.spin(round.id, this.weightedWheel()).subscribe({
@@ -267,7 +282,58 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Spins the same stage over the real current-round nominees, purely client-side — no
+   * backend call, no round mutation, no persisted winner. Lets an admin see how a style
+   * looks/feels with the real list before committing to the real spin.
+   */
+  testSpin(): void {
+    const entries = this.wheelEntries();
+    if (this.spinning() || entries.length === 0) return;
+
+    this.testResult.set(null);
+    this.testResultNominations.set([]);
+    this.spinning.set(true);
+    this.testSpinning.set(true);
+
+    const index = this.pickRandomIndex(entries);
+    this.testTargetIndex = index;
+
+    setTimeout(() => {
+      this.stage?.spinTo(index);
+    }, 50);
+  }
+
+  private pickRandomIndex(entries: WheelEntry[]): number {
+    if (!this.weightedWheel()) {
+      return Math.floor(Math.random() * entries.length);
+    }
+    const totalWeight = entries.reduce((sum, e) => sum + e.nominationIds.length, 0);
+    let roll = Math.random() * totalWeight;
+    for (let i = 0; i < entries.length; i++) {
+      roll -= entries[i].nominationIds.length;
+      if (roll < 0) return i;
+    }
+    return entries.length - 1;
+  }
+
   onSpinFinished(): void {
+    if (this.testSpinning()) {
+      const index = this.testTargetIndex;
+      const entry = index !== null ? this.wheelEntries()[index] : null;
+      const round = this.currentRound();
+      this.testSpinning.set(false);
+      this.spinning.set(false);
+      this.testTargetIndex = null;
+      this.testResult.set(entry?.nomineeName ?? null);
+      if (entry && round) {
+        this.loadNominationsFor(round.id, entry.nomineeEmail, this.testResultNominations);
+      } else {
+        this.testResultNominations.set([]);
+      }
+      return;
+    }
+
     const result = this.pendingSpinResult;
     if (!result) return;
     this.pendingSpinResult = null;
@@ -276,45 +342,7 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     this.spinning.set(false);
     this.celebrationService.celebrate();
     this.loadEverything();
-  }
-
-  shufflePreviewNames(): void {
-    const count = Math.max(1, Math.min(this.previewPoolSize, Math.round(this.previewCount())));
-    const pool = [...PREVIEW_NAME_POOL];
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    this.previewNames.set(pool.slice(0, count));
-    this.previewWinner.set(null);
-  }
-
-  onPreviewCountChange(value: string): void {
-    const parsed = parseInt(value, 10);
-    this.previewCount.set(Number.isFinite(parsed) ? parsed : 1);
-    this.shufflePreviewNames();
-  }
-
-  spinPreview(): void {
-    if (this.previewSpinning() || this.previewNames().length === 0) return;
-    this.previewSpinning.set(true);
-    this.previewWinner.set(null);
-
-    const targetIndex = Math.floor(Math.random() * this.previewNames().length);
-    this.previewTargetIndex = targetIndex;
-
-    setTimeout(() => {
-      this.previewStage?.spinTo(targetIndex);
-    }, 50);
-  }
-
-  onPreviewSpinFinished(): void {
-    const index = this.previewTargetIndex;
-    this.previewSpinning.set(false);
-    this.previewTargetIndex = null;
-    if (index !== null) {
-      this.previewWinner.set(this.previewNames()[index] ?? null);
-    }
+    this.loadNominationsFor(result.round.id, result.winner.nomineeEmail, this.winnerNominations);
   }
 
   async shareWinnerCard(name: string, email: string): Promise<void> {
@@ -350,5 +378,9 @@ export class AdminPageComponent implements OnInit, OnDestroy {
 
   categoryBadgeClass(category: GritCategory): string {
     return `badge-${category.toLowerCase()}`;
+  }
+
+  nominatorDisplayName(nomination: Nomination): string {
+    return nomination.isAnonymous || !nomination.nominatorName ? 'Anonymous' : nomination.nominatorName;
   }
 }

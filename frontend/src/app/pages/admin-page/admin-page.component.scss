@@ -1,7 +1,6 @@
 .round-panel,
 .new-round-card,
 .directory-card,
-.preview-card,
 .rounds-history {
   margin-bottom: 1.5rem;
 
@@ -25,7 +24,70 @@
 .spin-actions {
   display: flex;
   justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
   margin: 1rem 0;
+}
+
+.test-spin-result {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  background: #eef4ff;
+  border: 1px solid #c7d9f9;
+  color: var(--bw-navy);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.88rem;
+  margin: 0 0 1rem;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  text-decoration: underline;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+
+.winner-nominations {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 640px;
+  margin: 0 auto 1rem;
+
+  &__item {
+    border: 1px solid var(--bw-border);
+    border-radius: 10px;
+    padding: 0.75rem 0.9rem;
+    background: #fff;
+  }
+
+  &__categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+  }
+
+  &__reason {
+    margin: 0 0 0.35rem;
+    color: var(--bw-text);
+    font-style: italic;
+    line-height: 1.5;
+  }
+
+  &__from {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--bw-text-muted);
+  }
 }
 
 .presentation-bar {
@@ -64,31 +126,6 @@
     font-size: 1.3rem;
     font-weight: 800;
     color: var(--bw-navy);
-  }
-}
-
-.preview-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 0.75rem 0;
-  flex-wrap: wrap;
-
-  &__count {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    color: var(--bw-text-muted);
-
-    input {
-      width: 70px;
-      border: 1px solid var(--bw-border);
-      border-radius: 6px;
-      padding: 0.3rem 0.5rem;
-      font-size: 0.9rem;
-      font-family: inherit;
-    }
   }
 }
 

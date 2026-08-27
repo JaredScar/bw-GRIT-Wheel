@@ -83,9 +83,46 @@
                   (click)="spinWheel()"
                   [disabled]="spinning() || wheelEntries().length === 0"
                 >
-                  {{ spinning() ? 'Spinning...' : 'Spin the wheel' }}
+                  {{ spinning() && !testSpinning() ? 'Spinning...' : 'Spin the wheel' }}
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  type="button"
+                  (click)="testSpin()"
+                  [disabled]="spinning() || wheelEntries().length === 0"
+                  title="Spins over the real nominees without saving a winner or affecting the round"
+                >
+                  {{ testSpinning() ? 'Testing...' : '🧪 Test spin' }}
                 </button>
               </div>
+
+              @if (testResult(); as testName) {
+                <div class="test-spin-result">
+                  🧪 Test result (not saved): <strong>{{ testName }}</strong>
+                  <button
+                    type="button"
+                    class="link-btn"
+                    (click)="testResult.set(null); testResultNominations.set([])"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+                @if (testResultNominations().length > 0) {
+                  <div class="winner-nominations">
+                    @for (nomination of testResultNominations(); track nomination.id) {
+                      <div class="winner-nominations__item">
+                        <div class="winner-nominations__categories">
+                          @for (category of nomination.gritCategories; track category) {
+                            <span class="badge" [class]="categoryBadgeClass(category)">{{ categoryLabels[category] }}</span>
+                          }
+                        </div>
+                        <p class="winner-nominations__reason">"{{ nomination.reason }}"</p>
+                        <p class="winner-nominations__from">— {{ nominatorDisplayName(nomination) }}</p>
+                      </div>
+                    }
+                  </div>
+                }
+              }
 
               @if (winner()) {
                 <div class="winner-reveal">
@@ -102,6 +139,21 @@
                 </div>
                 @if (cardError()) {
                   <div class="banner banner-error">{{ cardError() }}</div>
+                }
+                @if (winnerNominations().length > 0) {
+                  <div class="winner-nominations">
+                    @for (nomination of winnerNominations(); track nomination.id) {
+                      <div class="winner-nominations__item">
+                        <div class="winner-nominations__categories">
+                          @for (category of nomination.gritCategories; track category) {
+                            <span class="badge" [class]="categoryBadgeClass(category)">{{ categoryLabels[category] }}</span>
+                          }
+                        </div>
+                        <p class="winner-nominations__reason">"{{ nomination.reason }}"</p>
+                        <p class="winner-nominations__from">— {{ nominatorDisplayName(nomination) }}</p>
+                      </div>
+                    }
+                  </div>
                 }
               }
             </app-randomizer-stage>
@@ -129,6 +181,21 @@
           @if (cardError()) {
             <div class="banner banner-error">{{ cardError() }}</div>
           }
+          @if (winnerNominations().length > 0) {
+            <div class="winner-nominations">
+              @for (nomination of winnerNominations(); track nomination.id) {
+                <div class="winner-nominations__item">
+                  <div class="winner-nominations__categories">
+                    @for (category of nomination.gritCategories; track category) {
+                      <span class="badge" [class]="categoryBadgeClass(category)">{{ categoryLabels[category] }}</span>
+                    }
+                  </div>
+                  <p class="winner-nominations__reason">"{{ nomination.reason }}"</p>
+                  <p class="winner-nominations__from">— {{ nominatorDisplayName(nomination) }}</p>
+                </div>
+              }
+            </div>
+          }
         }
 
         <a class="btn btn-secondary" [routerLink]="['/nominations']" [queryParams]="{ roundId: currentRound()!.id }">
@@ -136,59 +203,6 @@
         </a>
       </div>
     }
-
-    <div class="card preview-card">
-      <h2>🧪 Randomizer preview</h2>
-      <p class="hint">
-        Try out each randomizer style with sample names before using it live — this never touches
-        real rounds or nominations.
-      </p>
-
-      <div class="preview-controls">
-        <label class="preview-controls__count">
-          Sample size
-          <input
-            type="number"
-            min="1"
-            [max]="previewPoolSize"
-            [value]="previewCount()"
-            [disabled]="previewSpinning()"
-            (change)="onPreviewCountChange($any($event.target).value)"
-          />
-        </label>
-        <button
-          type="button"
-          class="btn btn-secondary btn-small"
-          [disabled]="previewSpinning()"
-          (click)="shufflePreviewNames()"
-        >
-          🔀 New random sample
-        </button>
-      </div>
-
-      <app-randomizer-stage
-        #previewStageRef
-        [entries]="previewSegments"
-        (spinFinished)="onPreviewSpinFinished()"
-      >
-        <div class="spin-actions">
-          <button
-            class="btn btn-primary"
-            type="button"
-            [disabled]="previewSpinning() || previewSegments.length === 0"
-            (click)="spinPreview()"
-          >
-            {{ previewSpinning() ? 'Spinning...' : 'Spin (preview)' }}
-          </button>
-        </div>
-
-        @if (previewWinner(); as name) {
-          <div class="winner-reveal">
-            <span>🏆 Preview winner: <strong>{{ name }}</strong></span>
-          </div>
-        }
-      </app-randomizer-stage>
-    </div>
 
     <div class="card new-round-card">
       <h2>Start a new round</h2>
