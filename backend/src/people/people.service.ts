@@ -88,7 +88,9 @@ export class PeopleService {
 
     const categoryCounts = new Map<GritCategory, number>();
     for (const nomination of nominations) {
-      categoryCounts.set(nomination.gritCategory, (categoryCounts.get(nomination.gritCategory) ?? 0) + 1);
+      for (const category of nomination.gritCategories) {
+        categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+      }
     }
     const categoryBreakdown = Array.from(categoryCounts.entries()).map(([category, count]) => ({
       category,
@@ -178,7 +180,7 @@ export class PeopleService {
         .select('n.nomineeEmail', 'email')
         .addSelect('MAX(n.nomineeName)', 'name')
         .addSelect('COUNT(*)', 'count')
-        .where('n.gritCategory = :category', { category })
+        .where(':category = ANY(n.gritCategories)', { category })
         .groupBy('n.nomineeEmail')
         .orderBy('count', 'DESC')
         .limit(1)

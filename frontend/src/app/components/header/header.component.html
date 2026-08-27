@@ -9,14 +9,54 @@
       <nav class="app-header__nav">
         <a routerLink="/nominate" routerLinkActive="active">Nominate</a>
         <a routerLink="/nominations" routerLinkActive="active">Nominations</a>
-        <a routerLink="/rounds" routerLinkActive="active">Rounds &amp; Winners</a>
+        <a routerLink="/rounds" routerLinkActive="active">GRIT Hall of Names</a>
         <!-- Leaderboard link temporarily hidden; see app.routes.ts -->
         @if (authService.isAdmin()) {
           <a routerLink="/admin" routerLinkActive="active">Admin</a>
         }
       </nav>
       <div class="app-header__user">
-        <span class="app-header__email">{{ user.email }}</span>
+        <div class="name-editor-wrap">
+          <button
+            class="app-header__email"
+            type="button"
+            title="Click to change your display name"
+            (click)="editingName() ? cancelNameEdit() : openNameEditor()"
+          >
+            {{ user.name || user.email }}
+          </button>
+          @if (editingName()) {
+            <div class="name-editor">
+              <label for="displayNameInput">Display name</label>
+              <input
+                id="displayNameInput"
+                type="text"
+                [value]="nameDraft()"
+                (input)="nameDraft.set($any($event.target).value)"
+                (keydown.enter)="saveName()"
+                (keydown.escape)="cancelNameEdit()"
+                maxlength="120"
+                autofocus
+              />
+              @if (nameError()) {
+                <span class="name-editor__error">{{ nameError() }}</span>
+              }
+              <div class="name-editor__actions">
+                <button type="button" class="btn btn-secondary btn-small" (click)="cancelNameEdit()">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary btn-small"
+                  [disabled]="savingName()"
+                  (click)="saveName()"
+                >
+                  {{ savingName() ? 'Saving...' : 'Save' }}
+                </button>
+              </div>
+            </div>
+          }
+        </div>
         <button class="app-header__logout" type="button" (click)="logout()">Log out</button>
       </div>
     } @else {

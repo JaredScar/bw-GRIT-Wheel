@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -78,7 +78,9 @@ export class AuthService implements OnModuleInit {
 
   /**
    * Called once the Google profile has been verified *and* domain-checked. Creates the
-   * user on first sign-in, and keeps their display name in sync with Google after that.
+   * user on first sign-in, and keeps their display name in sync with Google after that
+   * — unless they've since set a custom one themselves, in which case sign-in leaves it
+   * alone.
    */
   async signInWithGoogleProfile(profile: GoogleProfile): Promise<{ jwt: string; user: User }> {
     const email = profile.email.trim().toLowerCase();
@@ -92,7 +94,7 @@ export class AuthService implements OnModuleInit {
         roles: this.isAdminEmail(email) ? [Role.User, Role.Admin] : [Role.User],
       });
     }
-    if (profile.name) {
+    if (profile.name && !user.nameSetByUser) {
       user.name = profile.name;
     }
     // Kept in sync on every sign-in: Google rotates these URLs, and a stale one just
@@ -111,6 +113,17 @@ export class AuthService implements OnModuleInit {
 
   async getUserById(id: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { id } });
+  }
+
+  async updateDisplayName(userId: string, name: string): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    user.name = name.trim();
+    user.nameSetByUser = true;
+    return this.usersRepository.save(user);
   }
 
   toSessionUser(user: User): SessionUser {

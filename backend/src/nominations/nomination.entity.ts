@@ -31,8 +31,8 @@ export class Nomination {
   @Column()
   nomineeEmail: string;
 
-  @Column({ type: 'varchar' })
-  gritCategory: GritCategory;
+  @Column('text', { array: true })
+  gritCategories: GritCategory[];
 
   @Column({ type: 'text' })
   reason: string;

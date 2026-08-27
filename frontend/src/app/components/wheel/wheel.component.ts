@@ -1,9 +1,12 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Randomizer, RandomizerEntry, randomizerColor } from '../../models/randomizer.model';
 
-export interface WheelSegment {
-  label: string;
-  weight?: number;
-}
+/** @deprecated use `RandomizerEntry` from `models/randomizer.model` instead. */
+export type WheelSegment = RandomizerEntry;
+
+const SVG_SIZE = 200;
+const SVG_CENTER = SVG_SIZE / 2;
+const SVG_RADIUS = 96;
 
 @Component({
   selector: 'app-wheel',
@@ -11,26 +14,19 @@ export interface WheelSegment {
   templateUrl: './wheel.component.html',
   styleUrl: './wheel.component.scss',
 })
-export class WheelComponent {
-  @Input() segments: WheelSegment[] = [];
+export class WheelComponent implements Randomizer {
+  @Input() segments: RandomizerEntry[] = [];
+  @Input() hoveredIndex: number | null = null;
+  @Output() hoveredIndexChange = new EventEmitter<number | null>();
   @Output() spinFinished = new EventEmitter<number>();
+
+  readonly svgSize = SVG_SIZE;
 
   rotation = 0;
   spinning = false;
 
-  private readonly colors = [
-    '#175ddc',
-    '#1a1c21',
-    '#0b826a',
-    '#e07a1f',
-    '#6c4de6',
-    '#b7280c',
-    '#0f9bd7',
-    '#8a6300',
-  ];
-
   segmentColor(index: number): string {
-    return this.colors[index % this.colors.length];
+    return randomizerColor(index);
   }
 
   /** Cumulative start angles (in degrees) for each segment, weighted by segment.weight (default 1). */
@@ -51,17 +47,32 @@ export class WheelComponent {
     return angles[index] + (angles[index + 1] - angles[index]) / 2;
   }
 
-  conicGradient(): string {
-    if (!this.segments.length) return '#e2e6ef';
+  /** SVG arc path for one wedge, so each segment is its own hoverable element. */
+  segmentPath(index: number): string {
     const angles = this.cumulativeAngles();
-    const stops = this.segments.map(
-      (_, i) => `${this.segmentColor(i)} ${angles[i]}deg ${angles[i + 1]}deg`,
-    );
-    return `conic-gradient(${stops.join(', ')})`;
+    const start = angles[index];
+    const end = angles[index + 1];
+    const largeArc = end - start > 180 ? 1 : 0;
+    const p1 = this.pointOnCircle(start);
+    const p2 = this.pointOnCircle(end);
+    return `M ${SVG_CENTER},${SVG_CENTER} L ${p1.x},${p1.y} A ${SVG_RADIUS},${SVG_RADIUS} 0 ${largeArc} 1 ${p2.x},${p2.y} Z`;
   }
 
-  labelTransform(index: number): string {
-    return `rotate(${this.segmentMidAngle(index)}deg)`;
+  /** `angleDeg` uses the same 0deg-at-top, clockwise convention as the rest of the wheel. */
+  private pointOnCircle(angleDeg: number): { x: number; y: number } {
+    const rad = (angleDeg * Math.PI) / 180;
+    return {
+      x: SVG_CENTER + SVG_RADIUS * Math.sin(rad),
+      y: SVG_CENTER - SVG_RADIUS * Math.cos(rad),
+    };
+  }
+
+  onSegmentEnter(index: number): void {
+    this.hoveredIndexChange.emit(index);
+  }
+
+  onSegmentLeave(): void {
+    this.hoveredIndexChange.emit(null);
   }
 
   spinTo(index: number, extraSpins = 6): void {

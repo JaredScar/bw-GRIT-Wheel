@@ -3,7 +3,6 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import type { SessionUser } from '../auth/session-user';
 import { GritCategory } from '../common/grit-category.enum';
 import { CreateNominationDto } from './dto/create-nomination.dto';
-import type { NominationSort } from './nominations.service';
 import { NominationsService } from './nominations.service';
 
 @Controller('nominations')
@@ -12,7 +11,7 @@ export class NominationsController {
 
   @Post()
   create(@Body() dto: CreateNominationDto, @CurrentUser() user: SessionUser) {
-    return this.nominationsService.create(dto, user.email);
+    return this.nominationsService.create(dto, user);
   }
 
   @Get()
@@ -21,13 +20,11 @@ export class NominationsController {
     @Query('roundId') roundId?: string,
     @Query('gritCategory') gritCategory?: GritCategory,
     @Query('nomineeEmail') nomineeEmail?: string,
-    @Query('sort') sort?: NominationSort,
   ) {
     return this.nominationsService.findAll({
       roundId,
       gritCategory,
       nomineeEmail,
-      sort,
       viewerEmail: user.email,
     });
   }

@@ -14,13 +14,15 @@ export class SlackNotificationService {
 
   async notifyNewNomination(params: {
     nomineeName: string;
-    gritCategory: GritCategory;
+    gritCategories: GritCategory[];
     reason: string;
     isAnonymous: boolean;
     nominatorName: string | null;
   }): Promise<void> {
     const nominator = params.isAnonymous || !params.nominatorName ? 'Someone' : params.nominatorName;
-    const categoryLabel = GRIT_CATEGORY_LABELS[params.gritCategory] ?? params.gritCategory;
+    const categoryLabel = params.gritCategories
+      .map((category) => GRIT_CATEGORY_LABELS[category] ?? category)
+      .join(' & ');
     const reasonSnippet =
       params.reason.length > 300 ? `${params.reason.slice(0, 300)}...` : params.reason;
 

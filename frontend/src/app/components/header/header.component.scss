@@ -77,6 +77,69 @@
   &__email {
     font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.7);
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0.2rem 0.3rem;
+    border-radius: 4px;
+    transition: background 0.15s ease, color 0.15s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+  }
+
+  .name-editor-wrap {
+    position: relative;
+  }
+
+  .name-editor {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    z-index: 30;
+    background: #fff;
+    color: var(--bw-text);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    padding: 0.9rem;
+    width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--bw-navy);
+    }
+
+    input {
+      border: 1px solid var(--bw-border);
+      border-radius: 6px;
+      padding: 0.45rem 0.6rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+
+      &:focus {
+        outline: none;
+        border-color: var(--bw-blue);
+        box-shadow: 0 0 0 3px rgba(23, 93, 220, 0.15);
+      }
+    }
+
+    &__error {
+      color: var(--bw-danger);
+      font-size: 0.78rem;
+    }
+
+    &__actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
   }
 
   &__logout {

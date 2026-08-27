@@ -1,14 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import type { SessionUser } from '../auth/session-user';
 import { GritCategory } from '../common/grit-category.enum';
+import { DirectoryService } from '../directory/directory.service';
 import { SlackNotificationService } from '../notifications/slack-notification.service';
 import { RoundsService } from '../rounds/rounds.service';
 import { CreateNominationDto } from './dto/create-nomination.dto';
 import { NominationUpvote } from './nomination-upvote.entity';
 import { Nomination } from './nomination.entity';
-
-export type NominationSort = 'newest' | 'trending';
 
 export interface PublicNomination {
   id: string;
@@ -16,7 +16,7 @@ export interface PublicNomination {
   isAnonymous: boolean;
   nomineeName: string;
   nomineeEmail: string;
-  gritCategory: GritCategory;
+  gritCategories: GritCategory[];
   reason: string;
   roundId: string;
   createdAt: Date;
@@ -39,18 +39,26 @@ export class NominationsService {
     private readonly upvotesRepository: Repository<NominationUpvote>,
     private readonly roundsService: RoundsService,
     private readonly slackNotificationService: SlackNotificationService,
+    private readonly directoryService: DirectoryService,
   ) {}
 
-  async create(dto: CreateNominationDto, nominatorEmail: string): Promise<PublicNomination> {
+  async create(dto: CreateNominationDto, nominator: SessionUser): Promise<PublicNomination> {
+    const nominee = await this.directoryService.findByEmail(dto.nomineeEmail);
+    if (!nominee) {
+      throw new BadRequestException('Please select the nominee from the list');
+    }
+
     const currentRound = await this.roundsService.getOrCreateCurrentOpenRound();
 
     const nomination = this.nominationsRepository.create({
-      nominatorName: dto.nominatorName.trim(),
-      nominatorEmail: nominatorEmail.trim().toLowerCase(),
+      // Taken from the nominator's own signed-in account rather than a free-text
+      // field, so it can't drift from a typo and always matches who they really are.
+      nominatorName: nominator.name?.trim() || nominator.email,
+      nominatorEmail: nominator.email.trim().toLowerCase(),
       isAnonymous: dto.isAnonymous ?? false,
-      nomineeName: dto.nomineeName.trim(),
-      nomineeEmail: dto.nomineeEmail.trim().toLowerCase(),
-      gritCategory: dto.gritCategory,
+      nomineeName: nominee.name,
+      nomineeEmail: nominee.email,
+      gritCategories: dto.gritCategories,
       reason: dto.reason.trim(),
       roundId: currentRound.id,
     });
@@ -59,7 +67,7 @@ export class NominationsService {
 
     void this.slackNotificationService.notifyNewNomination({
       nomineeName: saved.nomineeName,
-      gritCategory: saved.gritCategory,
+      gritCategories: saved.gritCategories,
       reason: saved.reason,
       isAnonymous: saved.isAnonymous,
       nominatorName: saved.nominatorName,
@@ -72,18 +80,24 @@ export class NominationsService {
     roundId?: string;
     gritCategory?: GritCategory;
     nomineeEmail?: string;
-    sort?: NominationSort;
     viewerEmail?: string;
   }): Promise<PublicNomination[]> {
-    const where: Record<string, unknown> = {};
-    if (filters.roundId) where.roundId = filters.roundId;
-    if (filters.gritCategory) where.gritCategory = filters.gritCategory;
-    if (filters.nomineeEmail) where.nomineeEmail = filters.nomineeEmail.trim().toLowerCase();
+    const qb = this.nominationsRepository.createQueryBuilder('n');
 
-    const nominations = await this.nominationsRepository.find({
-      where,
-      order: { createdAt: 'DESC' },
-    });
+    if (filters.roundId) {
+      qb.andWhere('n.roundId = :roundId', { roundId: filters.roundId });
+    }
+    if (filters.gritCategory) {
+      qb.andWhere(':category = ANY(n.gritCategories)', { category: filters.gritCategory });
+    }
+    if (filters.nomineeEmail) {
+      qb.andWhere('n.nomineeEmail = :nomineeEmail', {
+        nomineeEmail: filters.nomineeEmail.trim().toLowerCase(),
+      });
+    }
+    qb.orderBy('n.createdAt', 'DESC');
+
+    const nominations = await qb.getMany();
 
     if (nominations.length === 0) {
       return [];
@@ -96,7 +110,7 @@ export class NominationsService {
       : new Set<string>();
     const currentRound = await this.roundsService.getCurrentOpenRound();
 
-    let result = nominations.map((n) =>
+    return nominations.map((n) =>
       this.toPublic(
         n,
         countMap.get(n.id) ?? 0,
@@ -104,14 +118,6 @@ export class NominationsService {
         currentRound?.id === n.roundId,
       ),
     );
-
-    if (filters.sort === 'trending') {
-      result = [...result].sort(
-        (a, b) => b.upvoteCount - a.upvoteCount || b.createdAt.getTime() - a.createdAt.getTime(),
-      );
-    }
-
-    return result;
   }
 
   async findOnePublic(id: string, viewerEmail?: string): Promise<PublicNomination> {
@@ -203,7 +209,7 @@ export class NominationsService {
       isAnonymous: nomination.isAnonymous,
       nomineeName: nomination.nomineeName,
       nomineeEmail: nomination.nomineeEmail,
-      gritCategory: nomination.gritCategory,
+      gritCategories: nomination.gritCategories,
       reason: nomination.reason,
       roundId: nomination.roundId,
       createdAt: nomination.createdAt,

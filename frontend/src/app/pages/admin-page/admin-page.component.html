@@ -43,40 +43,121 @@
             Weight slices by number of nominations (instead of equal weight per person)
           </label>
 
-          <app-wheel [segments]="segments"></app-wheel>
-
-          @if (spinError()) {
-            <div class="banner banner-error">{{ spinError() }}</div>
-          }
-
-          <div class="spin-actions">
+          <div class="presentation-bar">
             <button
-              class="btn btn-primary"
               type="button"
-              (click)="spinWheel()"
-              [disabled]="spinning() || wheelEntries().length === 0"
+              class="btn btn-secondary btn-small"
+              (click)="enterPresentationMode()"
             >
-              {{ spinning() ? 'Spinning...' : 'Spin the wheel' }}
+              🖥️ Presentation mode
             </button>
           </div>
 
-          @if (winner()) {
-            <div class="winner-reveal">
-              <app-avatar [email]="winner()!.nomineeEmail" [name]="winner()!.nomineeName" [size]="40"></app-avatar>
-              <span>🏆 Winner: <strong>{{ winner()!.nomineeName }}</strong></span>
-              <button
-                class="btn btn-secondary btn-small"
-                type="button"
-                [disabled]="sharingCard()"
-                (click)="shareWinnerCard(winner()!.nomineeName, winner()!.nomineeEmail)"
-              >
-                📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
-              </button>
-            </div>
-            @if (cardError()) {
-              <div class="banner banner-error">{{ cardError() }}</div>
+          <div
+            class="presentation-stage"
+            #presentationStageEl
+            [class.presentation-stage--active]="presentationMode()"
+          >
+            @if (presentationMode()) {
+              <div class="presentation-stage__bar">
+                <span class="presentation-stage__title">{{ currentRound()!.title }}</span>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-small"
+                  (click)="exitPresentationMode()"
+                >
+                  ✕ Exit presentation
+                </button>
+              </div>
             }
-          }
+
+            <app-randomizer-stage #stageRef [entries]="segments" (spinFinished)="onSpinFinished()">
+              @if (spinError()) {
+                <div class="banner banner-error">{{ spinError() }}</div>
+              }
+
+              <div class="spin-actions">
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  (click)="spinWheel()"
+                  [disabled]="spinning() || wheelEntries().length === 0"
+                >
+                  {{ spinning() && !testSpinning() ? 'Spinning...' : 'Spin the wheel' }}
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  type="button"
+                  (click)="testSpin()"
+                  [disabled]="spinning() || wheelEntries().length === 0"
+                  title="Spins over the real nominees without saving a winner or affecting the round"
+                >
+                  {{ testSpinning() ? 'Testing...' : '🧪 Test spin' }}
+                </button>
+              </div>
+
+              @if (testResult(); as testName) {
+                <div class="test-spin-result">
+                  🧪 Test result (not saved): <strong>{{ testName }}</strong>
+                  <button
+                    type="button"
+                    class="link-btn"
+                    (click)="testResult.set(null); testResultNominations.set([])"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+                @if (testResultNominations().length > 0) {
+                  <div class="winner-nominations">
+                    @for (nomination of testResultNominations(); track nomination.id) {
+                      <div class="winner-nominations__item">
+                        <div class="winner-nominations__categories">
+                          @for (category of nomination.gritCategories; track category) {
+                            <span class="badge" [class]="categoryBadgeClass(category)">{{ categoryLabels[category] }}</span>
+                          }
+                        </div>
+                        <p class="winner-nominations__reason">"{{ nomination.reason }}"</p>
+                        <p class="winner-nominations__from">— {{ nominatorDisplayName(nomination) }}</p>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+
+              @if (winner()) {
+                <div class="winner-reveal">
+                  <app-avatar [email]="winner()!.nomineeEmail" [name]="winner()!.nomineeName" [size]="40"></app-avatar>
+                  <span>🏆 Winner: <strong>{{ winner()!.nomineeName }}</strong></span>
+                  <button
+                    class="btn btn-secondary btn-small"
+                    type="button"
+                    [disabled]="sharingCard()"
+                    (click)="shareWinnerCard(winner()!.nomineeName, winner()!.nomineeEmail)"
+                  >
+                    📸 {{ sharingCard() ? 'Preparing...' : 'Share winner card' }}
+                  </button>
+                </div>
+                @if (cardError()) {
+                  <div class="banner banner-error">{{ cardError() }}</div>
+                }
+                @if (winnerNominations().length > 0) {
+                  <div class="winner-nominations">
+                    @for (nomination of winnerNominations(); track nomination.id) {
+                      <div class="winner-nominations__item">
+                        <div class="winner-nominations__categories">
+                          @for (category of nomination.gritCategories; track category) {
+                            <span class="badge" [class]="categoryBadgeClass(category)">{{ categoryLabels[category] }}</span>
+                          }
+                        </div>
+                        <p class="winner-nominations__reason">"{{ nomination.reason }}"</p>
+                        <p class="winner-nominations__from">— {{ nominatorDisplayName(nomination) }}</p>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+            </app-randomizer-stage>
+          </div>
         } @else if (currentRound()!.winnerNomineeName) {
           <div class="winner-reveal">
             <app-avatar
@@ -99,6 +180,21 @@
           </div>
           @if (cardError()) {
             <div class="banner banner-error">{{ cardError() }}</div>
+          }
+          @if (winnerNominations().length > 0) {
+            <div class="winner-nominations">
+              @for (nomination of winnerNominations(); track nomination.id) {
+                <div class="winner-nominations__item">
+                  <div class="winner-nominations__categories">
+                    @for (category of nomination.gritCategories; track category) {
+                      <span class="badge" [class]="categoryBadgeClass(category)">{{ categoryLabels[category] }}</span>
+                    }
+                  </div>
+                  <p class="winner-nominations__reason">"{{ nomination.reason }}"</p>
+                  <p class="winner-nominations__from">— {{ nominatorDisplayName(nomination) }}</p>
+                </div>
+              }
+            </div>
           }
         }
 
@@ -130,6 +226,43 @@
           {{ creatingRound() ? 'Creating...' : 'Create new round' }}
         </button>
       </form>
+    </div>
+
+    <div class="card directory-card">
+      <h2>Nominee directory</h2>
+      <p class="hint">
+        The nominate form only lets people pick from this roster. Import a CSV export of your
+        Slack workspace's member list (Active, non-bot, &#64;bitwarden.com accounts are kept;
+        everything else is skipped) to add new hires or refresh names.
+      </p>
+      <p class="hint"><strong>{{ directoryCount() }}</strong> {{ directoryCount() === 1 ? 'person' : 'people' }} currently nominate-able.</p>
+
+      @if (directoryImportError()) {
+        <div class="banner banner-error">{{ directoryImportError() }}</div>
+      }
+      @if (directoryImportSummary(); as summary) {
+        <div class="banner banner-success">
+          Imported {{ summary.imported }}, updated {{ summary.updated }}, skipped {{ summary.skipped }}
+          (of {{ summary.totalRows }} rows).
+        </div>
+      }
+
+      <div class="directory-import">
+        <input
+          #csvInput
+          type="file"
+          accept=".csv,text/csv"
+          (change)="onDirectoryFileSelected($any($event.target).files)"
+        />
+        <button
+          class="btn btn-primary"
+          type="button"
+          [disabled]="!selectedCsvFile() || importingDirectory()"
+          (click)="importDirectory(csvInput)"
+        >
+          {{ importingDirectory() ? 'Importing...' : 'Import CSV' }}
+        </button>
+      </div>
     </div>
 
     <div class="card rounds-history">

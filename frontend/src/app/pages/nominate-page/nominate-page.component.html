@@ -4,7 +4,7 @@
     <p>
       Recognize a teammate who embodies Gratitude, Responsibility, Innovation, Trust, or Grit.
       The winner is announced (and $100 in swag store credit awarded) at each all-hands meeting.
-      Only &#64;bitwarden.com email addresses can submit or be nominated.
+      Only &#64;bitwarden.com accounts can sign in to submit a nomination.
     </p>
   </div>
 
@@ -23,15 +23,12 @@
         <div class="banner banner-error">{{ errorMessage() }}</div>
       }
 
-      <p class="hint">Nominating as <strong>{{ authService.currentUser()?.email }}</strong></p>
-
-      <div class="form-field">
-        <label for="nominatorName">Your name</label>
-        <input id="nominatorName" type="text" formControlName="nominatorName" placeholder="Jane Doe" />
-        @if (form.get('nominatorName')?.invalid && form.get('nominatorName')?.touched) {
-          <span class="error">Your name is required.</span>
+      <p class="hint">
+        Nominating as <strong>{{ nominatorDisplayName }}</strong>
+        @if (authService.currentUser()?.name) {
+          ({{ authService.currentUser()?.email }})
         }
-      </div>
+      </p>
 
       <div class="checkbox-field">
         <input id="isAnonymous" type="checkbox" formControlName="isAnonymous" />
@@ -41,46 +38,60 @@
       <hr class="divider" />
 
       <div class="form-field">
-        <label for="nomineeName">First and last name of the person you're nominating</label>
-        <input id="nomineeName" type="text" formControlName="nomineeName" placeholder="Alex Rivera" />
-        @if (form.get('nomineeName')?.invalid && form.get('nomineeName')?.touched) {
-          <span class="error">The nominee's name is required.</span>
+        <label for="nomineeName">Who are you nominating?</label>
+        @if (directoryLoadError()) {
+          <div class="banner banner-error">{{ directoryLoadError() }}</div>
         }
-      </div>
-
-      <div class="form-field">
-        <label for="nomineeEmail">Work email of the person you're nominating</label>
-        <input
-          id="nomineeEmail"
-          type="email"
-          formControlName="nomineeEmail"
-          placeholder="alex.rivera@bitwarden.com"
-          list="known-nominees"
-          (change)="onNomineeEmailChange($any($event.target).value)"
-        />
-        <datalist id="known-nominees">
-          @for (person of knownPeople(); track person.email) {
-            <option [value]="person.email">{{ person.name }}</option>
+        <div class="combobox">
+          <input
+            id="nomineeName"
+            type="text"
+            autocomplete="off"
+            [value]="nomineeQuery()"
+            (input)="onNomineeInput($any($event.target).value)"
+            (focus)="onNomineeFocus()"
+            (blur)="onNomineeBlur()"
+            placeholder="Start typing a name..."
+          />
+          @if (showSuggestions() && nomineeMatches().length > 0) {
+            <ul class="combobox__list">
+              @for (person of nomineeMatches(); track person.email) {
+                <li>
+                  <button type="button" (mousedown)="selectNominee(person, $event)">{{ person.name }}</button>
+                </li>
+              }
+            </ul>
+          } @else if (showSuggestions() && nomineeQuery().trim()) {
+            <div class="combobox__empty">
+              No one found. Ask an admin to import the latest team roster if this person is missing.
+            </div>
           }
-        </datalist>
+        </div>
         @if (form.get('nomineeEmail')?.invalid && form.get('nomineeEmail')?.touched) {
-          <span class="error">A valid &#64;bitwarden.com email is required.</span>
+          <span class="error">Please select the nominee from the list.</span>
         }
       </div>
 
       <div class="form-field">
-        <label for="gritCategory">Which GRIT value best fits this nomination?</label>
-        <select id="gritCategory" formControlName="gritCategory">
-          <option value="" disabled>Select a value</option>
+        <label id="gritCategoriesLabel">Which GRIT value(s) fit this nomination? (select all that apply)</label>
+        <div class="checkbox-group" role="group" aria-labelledby="gritCategoriesLabel">
           @for (category of gritCategories; track category) {
-            <option [value]="category">{{ categoryLabels[category] }}</option>
+            <div class="checkbox-field checkbox-field--category">
+              <input
+                [id]="'gritCategory-' + category"
+                type="checkbox"
+                [checked]="isCategorySelected(category)"
+                (change)="toggleCategory(category, $any($event.target).checked)"
+              />
+              <label [for]="'gritCategory-' + category">
+                <span class="checkbox-field__title">{{ categoryLabels[category] }}</span>
+                <span class="checkbox-field__description">{{ categoryDescriptions[category] }}</span>
+              </label>
+            </div>
           }
-        </select>
-        @if (selectedCategoryDescription) {
-          <span class="hint">{{ selectedCategoryDescription }}</span>
-        }
-        @if (form.get('gritCategory')?.invalid && form.get('gritCategory')?.touched) {
-          <span class="error">Please select a GRIT value.</span>
+        </div>
+        @if (form.get('gritCategories')?.invalid && form.get('gritCategories')?.touched) {
+          <span class="error">Please select at least one GRIT value.</span>
         }
       </div>
 

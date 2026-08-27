@@ -1,0 +1,22 @@
+<div class="lottery">
+  <div class="lottery__drum" [class.lottery__drum--tumbling]="tumbling">
+    @for (entry of entries; track entry.label; let i = $index) {
+      <span
+        class="lottery__ball"
+        [class.lottery__ball--hidden]="winnerIndex !== null && winnerIndex !== i"
+        [style.background]="ballColor(i)"
+        [style.--jx.px]="jitterX(i)"
+        [style.--jy.px]="jitterY(i)"
+        [style.animation-duration.s]="jitterDuration(i)"
+        [style.animation-delay.s]="jitterDelay(i)"
+      >{{ initials(entry.label) }}</span>
+    }
+  </div>
+
+  @if (winnerEntry; as winner) {
+    <div class="lottery__reveal">
+      <span class="lottery__reveal-ball" [style.background]="ballColor(winnerIndex!)">{{ initials(winner.label) }}</span>
+      <span class="lottery__reveal-name">{{ winner.label }}</span>
+    </div>
+  }
+</div>

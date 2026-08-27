@@ -46,26 +46,6 @@
     }
   </div>
 
-  <div class="sort-toggle">
-    <span class="sort-toggle__label">Sort by</span>
-    <button
-      class="sort-toggle__btn"
-      [class.active]="sort() === 'newest'"
-      type="button"
-      (click)="selectSort('newest')"
-    >
-      🆕 Newest
-    </button>
-    <button
-      class="sort-toggle__btn"
-      [class.active]="sort() === 'trending'"
-      type="button"
-      (click)="selectSort('trending')"
-    >
-      🔥 Trending
-    </button>
-  </div>
-
   @if (loading()) {
     <div class="empty-state">Loading nominations...</div>
   } @else if (errorMessage()) {
@@ -77,9 +57,13 @@
       @for (nomination of filteredNominations(); track nomination.id) {
         <article class="card nomination-card">
           <div class="nomination-card__header">
-            <span class="badge" [class]="badgeClass(nomination.gritCategory)">
-              {{ categoryLabels[nomination.gritCategory] }}
-            </span>
+            <div class="nomination-card__badges">
+              @for (category of nomination.gritCategories; track category) {
+                <span class="badge" [class]="badgeClass(category)">
+                  {{ categoryLabels[category] }}
+                </span>
+              }
+            </div>
             <span class="nomination-card__date">{{ nomination.createdAt | date: 'MMM d, y' }}</span>
           </div>
           <a class="nomination-card__nominee" [routerLink]="['/people', nomination.nomineeEmail]">

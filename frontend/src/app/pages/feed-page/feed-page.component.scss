@@ -69,43 +69,6 @@
   }
 }
 
-.sort-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-
-  &__label {
-    font-size: 0.82rem;
-    color: var(--bw-text-muted);
-    font-weight: 600;
-    margin-right: 0.2rem;
-  }
-
-  &__btn {
-    border: 1px solid var(--bw-border);
-    background: #fff;
-    color: var(--bw-text-muted);
-    border-radius: 999px;
-    padding: 0.35rem 0.9rem;
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease;
-
-    &:hover {
-      border-color: var(--bw-blue);
-      color: var(--bw-blue);
-    }
-
-    &.active {
-      background: var(--bw-navy);
-      border-color: var(--bw-navy);
-      color: #fff;
-    }
-  }
-}
-
 .nomination-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -121,6 +84,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
   }
 
   &__date {

@@ -1,0 +1,16 @@
+<div class="slot">
+  <div class="slot__window">
+    <div class="slot__glow slot__glow--top" aria-hidden="true"></div>
+    <div
+      class="slot__reel"
+      [class.slot__reel--animating]="animating"
+      [style.transform]="'translateY(' + offsetPx + 'px)'"
+    >
+      @for (item of reelItems; track $index) {
+        <div class="slot__item">{{ item.label }}</div>
+      }
+    </div>
+    <div class="slot__glow slot__glow--bottom" aria-hidden="true"></div>
+    <div class="slot__marker" aria-hidden="true"></div>
+  </div>
+</div>

@@ -6,7 +6,7 @@ export interface Nomination {
   isAnonymous: boolean;
   nomineeName: string;
   nomineeEmail: string;
-  gritCategory: GritCategory;
+  gritCategories: GritCategory[];
   reason: string;
   roundId: string;
   createdAt: string;
@@ -15,18 +15,14 @@ export interface Nomination {
   canUpvote: boolean;
 }
 
-export type NominationSort = 'newest' | 'trending';
-
 export interface ToggleUpvoteResult {
   upvoteCount: number;
   hasUpvoted: boolean;
 }
 
 export interface CreateNominationPayload {
-  nominatorName: string;
   isAnonymous: boolean;
-  nomineeName: string;
   nomineeEmail: string;
-  gritCategory: GritCategory;
+  gritCategories: GritCategory[];
   reason: string;
 }

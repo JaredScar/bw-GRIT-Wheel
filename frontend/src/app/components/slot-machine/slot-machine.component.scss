@@ -1,0 +1,71 @@
+// Must match ITEM_HEIGHT_PX / VISIBLE_ROWS in slot-machine.component.ts.
+$item-height: 64px;
+$visible-rows: 3;
+
+.slot {
+  max-width: 340px;
+  flex-shrink: 0;
+}
+
+.slot__window {
+  position: relative;
+  height: $item-height * $visible-rows;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 6px solid #fff;
+  background: var(--bw-navy);
+  box-shadow:
+    0 0 0 4px var(--bw-blue),
+    0 12px 30px rgba(20, 24, 31, 0.35);
+}
+
+.slot__reel {
+  &--animating {
+    transition: transform 4.2s cubic-bezier(0.15, 0.65, 0.1, 1);
+  }
+}
+
+.slot__item {
+  height: $item-height;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.1rem;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.slot__marker {
+  position: absolute;
+  top: $item-height;
+  left: 0;
+  right: 0;
+  height: $item-height;
+  border-top: 2px solid var(--bw-blue);
+  border-bottom: 2px solid var(--bw-blue);
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.slot__glow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 22px;
+  pointer-events: none;
+  z-index: 2;
+
+  &--top {
+    top: 0;
+    background: linear-gradient(rgba(20, 24, 31, 0.9), transparent);
+  }
+
+  &--bottom {
+    bottom: 0;
+    background: linear-gradient(transparent, rgba(20, 24, 31, 0.9));
+  }
+}

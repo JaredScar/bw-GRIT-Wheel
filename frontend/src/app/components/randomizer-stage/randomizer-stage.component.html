@@ -1,0 +1,97 @@
+<div class="randomizer-toggle">
+  <span class="randomizer-toggle__label">Randomizer style</span>
+  <button
+    type="button"
+    class="randomizer-toggle__btn"
+    [class.active]="mode === 'wheel'"
+    [disabled]="spinning"
+    (click)="setMode('wheel')"
+  >
+    🎡 Wheel
+  </button>
+  <button
+    type="button"
+    class="randomizer-toggle__btn"
+    [class.active]="mode === 'slot'"
+    [disabled]="spinning"
+    (click)="setMode('slot')"
+  >
+    🎰 Slot
+  </button>
+  <button
+    type="button"
+    class="randomizer-toggle__btn"
+    [class.active]="mode === 'elimination'"
+    [disabled]="spinning"
+    (click)="setMode('elimination')"
+  >
+    ⚡ Elimination
+  </button>
+  <button
+    type="button"
+    class="randomizer-toggle__btn"
+    [class.active]="mode === 'cardflip'"
+    [disabled]="spinning"
+    (click)="setMode('cardflip')"
+  >
+    🃏 Card flip
+  </button>
+  <button
+    type="button"
+    class="randomizer-toggle__btn"
+    [class.active]="mode === 'lottery'"
+    [disabled]="spinning"
+    (click)="setMode('lottery')"
+  >
+    🎱 Lottery
+  </button>
+</div>
+
+<div class="round-panel__columns">
+  <div class="round-panel__main">
+    @if (mode === 'wheel') {
+      <app-wheel
+        #wheelRef
+        [segments]="entries"
+        [hoveredIndex]="hoveredSegment"
+        (hoveredIndexChange)="hoveredSegment = $event"
+        (spinFinished)="onChildSpinFinished($event)"
+      ></app-wheel>
+    } @else if (mode === 'slot') {
+      <app-slot-machine #slotRef [entries]="entries" (spinFinished)="onChildSpinFinished($event)"></app-slot-machine>
+    } @else if (mode === 'elimination') {
+      <app-elimination-flash
+        #eliminationRef
+        [entries]="entries"
+        (spinFinished)="onChildSpinFinished($event)"
+      ></app-elimination-flash>
+    } @else if (mode === 'cardflip') {
+      <app-card-flip #cardFlipRef [entries]="entries" (spinFinished)="onChildSpinFinished($event)"></app-card-flip>
+    } @else {
+      <app-lottery-ball #lotteryRef [entries]="entries" (spinFinished)="onChildSpinFinished($event)"></app-lottery-ball>
+    }
+
+    <ng-content></ng-content>
+  </div>
+
+  @if (entries.length > 0) {
+    <div class="randomizer-panel">
+      <h3 class="randomizer-panel__title">Eligible nominees</h3>
+      <ul class="randomizer-panel__list">
+        @for (entry of entries; track entry.label; let i = $index) {
+          <li
+            class="randomizer-panel__item"
+            [class.active]="mode === 'wheel' && hoveredSegment === i"
+            (mouseenter)="onLegendHover(i)"
+            (mouseleave)="onLegendHover(null)"
+          >
+            @if (mode === 'wheel' || mode === 'lottery') {
+              <span class="randomizer-panel__swatch" [style.background]="randomizerColor(i)"></span>
+            }
+            <span>{{ entry.label }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</div>
