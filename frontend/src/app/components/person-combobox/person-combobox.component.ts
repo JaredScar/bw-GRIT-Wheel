@@ -18,6 +18,7 @@ export class PersonComboboxComponent {
   @Input() placeholder = 'Start typing a name...';
   @Input() emptyMessage =
     "No one found. Ask an admin to import the latest team roster if this person is missing.";
+  @Input() excludedOnlyMessage = "That person is already selected.";
 
   @Output() picked = new EventEmitter<DirectoryPerson>();
 
@@ -30,6 +31,15 @@ export class PersonComboboxComponent {
     const pool = this.people.filter((person) => !excluded.has(person.email.toLowerCase()));
     const filtered = term ? pool.filter((person) => person.name.toLowerCase().includes(term)) : pool;
     return filtered.slice(0, MAX_SUGGESTIONS);
+  });
+
+  /** True when a name match exists but was filtered out by excludeEmails, so the
+   * dropdown can say "already selected" instead of the misleading "not in the
+   * directory" message. */
+  readonly matchesExcludedOnly = computed(() => {
+    const term = this.query().trim().toLowerCase();
+    if (!term || this.matches().length > 0) return false;
+    return this.people.some((person) => person.name.toLowerCase().includes(term));
   });
 
   onInput(value: string): void {
