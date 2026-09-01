@@ -9,6 +9,7 @@ import {
   GritCategory,
 } from '../../models/grit-category';
 import { Nomination } from '../../models/nomination.model';
+import { REACTION_EMOJI, REACTION_LABELS, REACTION_TYPES, ReactionType } from '../../models/reaction-type';
 import { NominationService } from '../../services/nomination.service';
 
 @Component({
@@ -21,6 +22,9 @@ import { NominationService } from '../../services/nomination.service';
 export class FeedPageComponent implements OnInit {
   readonly gritCategories = GRIT_CATEGORIES;
   readonly categoryLabels = GRIT_CATEGORY_LABELS;
+  readonly reactionTypes = REACTION_TYPES;
+  readonly reactionEmoji = REACTION_EMOJI;
+  readonly reactionLabels = REACTION_LABELS;
 
   readonly nominations = signal<Nomination[]>([]);
   readonly loading = signal(true);
@@ -103,15 +107,27 @@ export class FeedPageComponent implements OnInit {
     return nomination.isAnonymous || !nomination.nominatorName ? 'Anonymous' : nomination.nominatorName;
   }
 
-  onUpvoteClick(nomination: Nomination): void {
-    if (!nomination.canUpvote) return;
+  hasReacted(nomination: Nomination, type: ReactionType): boolean {
+    return nomination.myReactions.includes(type);
+  }
 
-    this.nominationService.toggleUpvote(nomination.id).subscribe({
+  reactionCount(nomination: Nomination, type: ReactionType): number {
+    return nomination.reactionCounts[type] ?? 0;
+  }
+
+  onReactionClick(nomination: Nomination, type: ReactionType): void {
+    this.nominationService.toggleReaction(nomination.id, type).subscribe({
       next: (result) => {
         this.nominations.update((list) =>
           list.map((n) =>
             n.id === nomination.id
-              ? { ...n, upvoteCount: result.upvoteCount, hasUpvoted: result.hasUpvoted }
+              ? {
+                  ...n,
+                  reactionCounts: result.reactionCounts,
+                  myReactions: result.myReactions,
+                  upvoteCount: result.reactionCounts[ReactionType.THUMBS_UP] ?? 0,
+                  hasUpvoted: result.myReactions.includes(ReactionType.THUMBS_UP),
+                }
               : n,
           ),
         );

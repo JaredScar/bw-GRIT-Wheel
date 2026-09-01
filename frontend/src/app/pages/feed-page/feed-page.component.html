@@ -73,17 +73,20 @@
           <p class="nomination-card__reason">{{ nomination.reason }}</p>
           <div class="nomination-card__footer">
             <p class="nomination-card__from">— {{ displayName(nomination) }}</p>
-            <button
-              class="upvote-btn"
-              type="button"
-              [class.active]="nomination.hasUpvoted"
-              [class.disabled]="!nomination.canUpvote"
-              [title]="nomination.canUpvote ? 'Agree with this nomination' : 'Only nominations from the current, open round can be agreed with'"
-              (click)="onUpvoteClick(nomination)"
-            >
-              <span class="upvote-btn__icon">👍</span>
-              <span class="upvote-btn__count">{{ nomination.upvoteCount }}</span>
-            </button>
+            <div class="reaction-bar">
+              @for (type of reactionTypes; track type) {
+                <button
+                  class="reaction-btn"
+                  type="button"
+                  [class.active]="hasReacted(nomination, type)"
+                  [title]="reactionLabels[type] + ' this nomination'"
+                  (click)="onReactionClick(nomination, type)"
+                >
+                  <span class="reaction-btn__icon">{{ reactionEmoji[type] }}</span>
+                  <span class="reaction-btn__count">{{ reactionCount(nomination, type) }}</span>
+                </button>
+              }
+            </div>
           </div>
         </article>
       }

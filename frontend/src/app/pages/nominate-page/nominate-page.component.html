@@ -60,15 +60,55 @@
                   <button type="button" (mousedown)="selectNominee(person, $event)">{{ person.name }}</button>
                 </li>
               }
+              <li>
+                <button type="button" class="combobox__add" (mousedown)="promptAddNewNominee($event)">
+                  + Add "{{ nomineeQuery().trim() }}" as a new nominee
+                </button>
+              </li>
             </ul>
           } @else if (showSuggestions() && nomineeQuery().trim()) {
             <div class="combobox__empty">
-              No one found. Ask an admin to import the latest team roster if this person is missing.
+              <p>No one found for "{{ nomineeQuery().trim() }}".</p>
+              <button type="button" class="combobox__add" (mousedown)="promptAddNewNominee($event)">
+                + Add "{{ nomineeQuery().trim() }}" as a new nominee
+              </button>
             </div>
           }
         </div>
+
+        @if (addingNewNominee()) {
+          <div class="add-nominee-prompt">
+            <label for="newNomineeEmail">What's {{ nomineeQuery().trim() }}'s email address?</label>
+            <input
+              id="newNomineeEmail"
+              type="email"
+              autocomplete="off"
+              [formControl]="newNomineeEmailControl"
+              placeholder="name@bitwarden.com"
+              (keydown.enter)="$event.preventDefault(); confirmAddNewNominee()"
+            />
+            @if (newNomineeEmailControl.invalid && newNomineeEmailControl.touched) {
+              <span class="error">Please enter a valid &#64;bitwarden.com email address.</span>
+            }
+            <div class="add-nominee-prompt__actions">
+              <button type="button" class="btn btn-secondary btn-small" (click)="cancelAddNewNominee()">
+                Cancel
+              </button>
+              <button type="button" class="btn btn-primary btn-small" (click)="confirmAddNewNominee()">
+                Add nominee
+              </button>
+            </div>
+          </div>
+        } @else if (newNomineeConfirmed()) {
+          <p class="hint">
+            ✓ "{{ nomineeQuery().trim() }}" isn't in the roster yet — they'll be added at
+            {{ form.get('nomineeEmail')?.value }} when you submit this nomination.
+            <button type="button" class="link-btn" (click)="promptAddNewNominee($event)">Change email</button>
+          </p>
+        }
+
         @if (form.get('nomineeEmail')?.invalid && form.get('nomineeEmail')?.touched) {
-          <span class="error">Please select the nominee from the list.</span>
+          <span class="error">Please select the nominee from the list, or add them as a new nominee.</span>
         }
       </div>
 

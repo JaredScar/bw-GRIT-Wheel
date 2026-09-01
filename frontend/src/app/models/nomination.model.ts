@@ -1,4 +1,5 @@
 import { GritCategory } from './grit-category';
+import { ReactionType } from './reaction-type';
 
 export interface Nomination {
   id: string;
@@ -12,17 +13,21 @@ export interface Nomination {
   createdAt: string;
   upvoteCount: number;
   hasUpvoted: boolean;
-  canUpvote: boolean;
+  reactionCounts: Record<ReactionType, number>;
+  myReactions: ReactionType[];
 }
 
-export interface ToggleUpvoteResult {
-  upvoteCount: number;
-  hasUpvoted: boolean;
+export interface ToggleReactionResult {
+  reactionCounts: Record<ReactionType, number>;
+  myReactions: ReactionType[];
 }
 
 export interface CreateNominationPayload {
   isAnonymous: boolean;
   nomineeEmail: string;
+  // Only needed when nomineeEmail isn't already in the directory, so the backend can
+  // add the new person and connect them to this nomination.
+  nomineeName?: string;
   gritCategories: GritCategory[];
   reason: string;
 }

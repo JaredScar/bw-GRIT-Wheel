@@ -9,6 +9,7 @@ import { RoundsService } from '../rounds/rounds.service';
 import { CreateNominationDto } from './dto/create-nomination.dto';
 import { NominationUpvote } from './nomination-upvote.entity';
 import { Nomination } from './nomination.entity';
+import { ReactionType, REACTION_TYPES } from './reaction-type.enum';
 
 export interface PublicNomination {
   id: string;
@@ -20,14 +21,24 @@ export interface PublicNomination {
   reason: string;
   roundId: string;
   createdAt: Date;
+  // Kept for existing consumers (person page, leaderboard, analytics) that only ever
+  // cared about the original thumbs-up reaction.
   upvoteCount: number;
   hasUpvoted: boolean;
-  canUpvote: boolean;
+  reactionCounts: Record<ReactionType, number>;
+  myReactions: ReactionType[];
 }
 
-export interface ToggleUpvoteResult {
-  upvoteCount: number;
-  hasUpvoted: boolean;
+export interface ToggleReactionResult {
+  reactionCounts: Record<ReactionType, number>;
+  myReactions: ReactionType[];
+}
+
+function emptyReactionCounts(): Record<ReactionType, number> {
+  return REACTION_TYPES.reduce(
+    (acc, type) => ({ ...acc, [type]: 0 }),
+    {} as Record<ReactionType, number>,
+  );
 }
 
 @Injectable()
@@ -43,9 +54,12 @@ export class NominationsService {
   ) {}
 
   async create(dto: CreateNominationDto, nominator: SessionUser): Promise<PublicNomination> {
-    const nominee = await this.directoryService.findByEmail(dto.nomineeEmail);
+    let nominee = await this.directoryService.findByEmail(dto.nomineeEmail);
     if (!nominee) {
-      throw new BadRequestException('Please select the nominee from the list');
+      if (!dto.nomineeName?.trim()) {
+        throw new BadRequestException('Please select the nominee from the list');
+      }
+      nominee = await this.directoryService.addPerson(dto.nomineeEmail, dto.nomineeName);
     }
 
     const currentRound = await this.roundsService.getOrCreateCurrentOpenRound();
@@ -73,7 +87,7 @@ export class NominationsService {
       nominatorName: saved.nominatorName,
     });
 
-    return this.toPublic(saved, 0, false, true);
+    return this.toPublic(saved, emptyReactionCounts(), []);
   }
 
   async findAll(filters: {
@@ -104,19 +118,13 @@ export class NominationsService {
     }
 
     const ids = nominations.map((n) => n.id);
-    const countMap = await this.getUpvoteCounts(ids);
-    const votedSet = filters.viewerEmail
-      ? await this.getVotedSet(ids, filters.viewerEmail)
-      : new Set<string>();
-    const currentRound = await this.roundsService.getCurrentOpenRound();
+    const countMap = await this.getReactionCounts(ids);
+    const myReactionsMap = filters.viewerEmail
+      ? await this.getMyReactions(ids, filters.viewerEmail)
+      : new Map<string, ReactionType[]>();
 
     return nominations.map((n) =>
-      this.toPublic(
-        n,
-        countMap.get(n.id) ?? 0,
-        votedSet.has(n.id),
-        currentRound?.id === n.roundId,
-      ),
+      this.toPublic(n, countMap.get(n.id) ?? emptyReactionCounts(), myReactionsMap.get(n.id) ?? []),
     );
   }
 
@@ -126,15 +134,15 @@ export class NominationsService {
       throw new NotFoundException('Nomination not found');
     }
 
-    const countMap = await this.getUpvoteCounts([id]);
-    const votedSet = viewerEmail ? await this.getVotedSet([id], viewerEmail) : new Set<string>();
-    const currentRound = await this.roundsService.getCurrentOpenRound();
+    const countMap = await this.getReactionCounts([id]);
+    const myReactionsMap = viewerEmail
+      ? await this.getMyReactions([id], viewerEmail)
+      : new Map<string, ReactionType[]>();
 
     return this.toPublic(
       nomination,
-      countMap.get(id) ?? 0,
-      votedSet.has(id),
-      currentRound?.id === nomination.roundId,
+      countMap.get(id) ?? emptyReactionCounts(),
+      myReactionsMap.get(id) ?? [],
     );
   }
 
@@ -142,66 +150,89 @@ export class NominationsService {
     return this.nominationsRepository.find({ where: { roundId } });
   }
 
-  async toggleUpvote(nominationId: string, voterEmail: string): Promise<ToggleUpvoteResult> {
+  // Reactions are open on any nomination regardless of round status — people should be
+  // able to like/support a nomination whether or not the round it came from has been
+  // spun on the wheel yet.
+  async toggleReaction(
+    nominationId: string,
+    voterEmail: string,
+    type: ReactionType,
+  ): Promise<ToggleReactionResult> {
     const nomination = await this.nominationsRepository.findOne({ where: { id: nominationId } });
     if (!nomination) {
       throw new NotFoundException('Nomination not found');
     }
 
-    const currentRound = await this.roundsService.getCurrentOpenRound();
-    if (!currentRound || nomination.roundId !== currentRound.id) {
-      throw new BadRequestException(
-        'You can only react to nominations from the current, still-open round',
-      );
-    }
-
     const normalizedEmail = voterEmail.trim().toLowerCase();
     const existing = await this.upvotesRepository.findOne({
-      where: { nominationId, voterEmail: normalizedEmail },
+      where: { nominationId, voterEmail: normalizedEmail, type },
     });
 
     if (existing) {
       await this.upvotesRepository.delete(existing.id);
     } else {
       await this.upvotesRepository.save(
-        this.upvotesRepository.create({ nominationId, voterEmail: normalizedEmail }),
+        this.upvotesRepository.create({ nominationId, voterEmail: normalizedEmail, type }),
       );
     }
 
-    const upvoteCount = await this.upvotesRepository.count({ where: { nominationId } });
-    return { upvoteCount, hasUpvoted: !existing };
+    const countMap = await this.getReactionCounts([nominationId]);
+    const myReactionsMap = await this.getMyReactions([nominationId], normalizedEmail);
+
+    return {
+      reactionCounts: countMap.get(nominationId) ?? emptyReactionCounts(),
+      myReactions: myReactionsMap.get(nominationId) ?? [],
+    };
   }
 
-  private async getUpvoteCounts(nominationIds: string[]): Promise<Map<string, number>> {
+  private async getReactionCounts(
+    nominationIds: string[],
+  ): Promise<Map<string, Record<ReactionType, number>>> {
     if (nominationIds.length === 0) return new Map();
 
     const rows = await this.upvotesRepository
-      .createQueryBuilder('upvote')
-      .select('upvote.nominationId', 'nominationId')
+      .createQueryBuilder('reaction')
+      .select('reaction.nominationId', 'nominationId')
+      .addSelect('reaction.type', 'type')
       .addSelect('COUNT(*)', 'count')
-      .where('upvote.nominationId IN (:...nominationIds)', { nominationIds })
-      .groupBy('upvote.nominationId')
-      .getRawMany<{ nominationId: string; count: string }>();
+      .where('reaction.nominationId IN (:...nominationIds)', { nominationIds })
+      .groupBy('reaction.nominationId')
+      .addGroupBy('reaction.type')
+      .getRawMany<{ nominationId: string; type: ReactionType; count: string }>();
 
-    return new Map(rows.map((row) => [row.nominationId, parseInt(row.count, 10)]));
+    const map = new Map<string, Record<ReactionType, number>>();
+    for (const row of rows) {
+      const counts = map.get(row.nominationId) ?? emptyReactionCounts();
+      counts[row.type] = parseInt(row.count, 10);
+      map.set(row.nominationId, counts);
+    }
+    return map;
   }
 
-  private async getVotedSet(nominationIds: string[], voterEmail: string): Promise<Set<string>> {
-    if (nominationIds.length === 0) return new Set();
+  private async getMyReactions(
+    nominationIds: string[],
+    voterEmail: string,
+  ): Promise<Map<string, ReactionType[]>> {
+    if (nominationIds.length === 0) return new Map();
 
     const normalizedEmail = voterEmail.trim().toLowerCase();
     const votes = await this.upvotesRepository.find({
       where: { voterEmail: normalizedEmail, nominationId: In(nominationIds) },
     });
 
-    return new Set(votes.map((v) => v.nominationId));
+    const map = new Map<string, ReactionType[]>();
+    for (const vote of votes) {
+      const types = map.get(vote.nominationId) ?? [];
+      types.push(vote.type);
+      map.set(vote.nominationId, types);
+    }
+    return map;
   }
 
   toPublic(
     nomination: Nomination,
-    upvoteCount: number,
-    hasUpvoted: boolean,
-    canUpvote: boolean,
+    reactionCounts: Record<ReactionType, number>,
+    myReactions: ReactionType[],
   ): PublicNomination {
     return {
       id: nomination.id,
@@ -213,9 +244,10 @@ export class NominationsService {
       reason: nomination.reason,
       roundId: nomination.roundId,
       createdAt: nomination.createdAt,
-      upvoteCount,
-      hasUpvoted,
-      canUpvote,
+      upvoteCount: reactionCounts[ReactionType.THUMBS_UP] ?? 0,
+      hasUpvoted: myReactions.includes(ReactionType.THUMBS_UP),
+      reactionCounts,
+      myReactions,
     };
   }
 }

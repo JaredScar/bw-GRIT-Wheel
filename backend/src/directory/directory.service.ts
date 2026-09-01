@@ -48,6 +48,29 @@ export class DirectoryService {
   }
 
   /**
+   * Adds a single person to the roster on the fly (e.g. when a nominator can't find
+   * someone via the picker) rather than waiting for the next CSV import. Upserts by
+   * email like the CSV import does, so re-adding an existing person is a no-op.
+   */
+  async addPerson(email: string, name: string): Promise<DirectoryPerson> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail.endsWith(BITWARDEN_EMAIL_SUFFIX)) {
+      throw new BadRequestException(
+        `New nominees must have a ${BITWARDEN_EMAIL_SUFFIX} email address`,
+      );
+    }
+
+    const existing = await this.directoryRepository.findOne({ where: { email: normalizedEmail } });
+    if (existing) {
+      return existing;
+    }
+
+    return this.directoryRepository.save(
+      this.directoryRepository.create({ email: normalizedEmail, name: name.trim() }),
+    );
+  }
+
+  /**
    * Imports/updates the nominee roster from a Slack "export member list" CSV. Column
    * names are matched case-insensitively against a few common aliases rather than a
    * single fixed header, since Slack's export format varies by plan/workspace.

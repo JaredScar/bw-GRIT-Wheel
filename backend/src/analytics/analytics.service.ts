@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { GritCategory } from '../common/grit-category.enum';
 import { NominationUpvote } from '../nominations/nomination-upvote.entity';
 import { Nomination } from '../nominations/nomination.entity';
+import { ReactionType } from '../nominations/reaction-type.enum';
 import { Round } from '../rounds/round.entity';
 
 export interface CategoryCount {
@@ -43,7 +44,7 @@ export class AnalyticsService {
     const [totalNominations, totalRounds, totalUpvotes, rounds] = await Promise.all([
       this.nominationsRepository.count(),
       this.roundsRepository.count(),
-      this.upvotesRepository.count(),
+      this.upvotesRepository.count({ where: { type: ReactionType.THUMBS_UP } }),
       this.roundsRepository.find(),
     ]);
 

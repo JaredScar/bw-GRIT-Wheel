@@ -5,6 +5,7 @@ import { GritCategory } from '../common/grit-category.enum';
 import { NominationUpvote } from '../nominations/nomination-upvote.entity';
 import { Nomination } from '../nominations/nomination.entity';
 import { NominationsService, PublicNomination } from '../nominations/nominations.service';
+import { ReactionType } from '../nominations/reaction-type.enum';
 import { RoundsService } from '../rounds/rounds.service';
 
 export interface PersonSummary {
@@ -128,7 +129,9 @@ export class PeopleService {
         .getRawMany<{ email: string; name: string; count: string }>(),
       this.nominationsRepository
         .createQueryBuilder('n')
-        .leftJoin('n.upvotes', 'u')
+        .leftJoin('n.upvotes', 'u', 'u.type = :reactionType', {
+          reactionType: ReactionType.THUMBS_UP,
+        })
         .select('n.nomineeEmail', 'email')
         .addSelect('MAX(n.nomineeName)', 'name')
         .addSelect('COUNT(u.id)', 'totalUpvotes')

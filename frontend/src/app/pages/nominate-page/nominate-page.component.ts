@@ -20,6 +20,7 @@ import { DirectoryService } from '../../services/directory.service';
 import { NominationService } from '../../services/nomination.service';
 
 const MAX_SUGGESTIONS = 8;
+const BITWARDEN_EMAIL_PATTERN = /^[^\s@]+@bitwarden\.com$/i;
 
 function minSelectionValidator(min: number): ValidatorFn {
   return (control): ValidationErrors | null => {
@@ -53,6 +54,8 @@ export class NominatePageComponent implements OnInit {
   readonly directory = signal<DirectoryPerson[]>([]);
   readonly nomineeQuery = signal('');
   readonly showSuggestions = signal(false);
+  readonly addingNewNominee = signal(false);
+  readonly newNomineeConfirmed = signal(false);
 
   readonly nomineeMatches = computed(() => {
     const term = this.nomineeQuery().trim().toLowerCase();
@@ -60,6 +63,11 @@ export class NominatePageComponent implements OnInit {
     if (!term) return people.slice(0, MAX_SUGGESTIONS);
     return people.filter((p) => p.name.toLowerCase().includes(term)).slice(0, MAX_SUGGESTIONS);
   });
+
+  readonly newNomineeEmailControl = this.fb.control('', [
+    Validators.required,
+    Validators.pattern(BITWARDEN_EMAIL_PATTERN),
+  ]);
 
   readonly form = this.fb.group({
     isAnonymous: [false],
@@ -87,6 +95,8 @@ export class NominatePageComponent implements OnInit {
   onNomineeInput(value: string): void {
     this.nomineeQuery.set(value);
     this.showSuggestions.set(true);
+    this.addingNewNominee.set(false);
+    this.newNomineeConfirmed.set(false);
     const control = this.form.get('nomineeEmail')!;
     if (control.value) {
       control.setValue('');
@@ -108,6 +118,33 @@ export class NominatePageComponent implements OnInit {
     this.form.get('nomineeEmail')!.setValue(person.email);
     this.form.get('nomineeEmail')!.markAsTouched();
     this.showSuggestions.set(false);
+    this.addingNewNominee.set(false);
+    this.newNomineeConfirmed.set(false);
+  }
+
+  promptAddNewNominee(event: Event): void {
+    event.preventDefault();
+    this.newNomineeEmailControl.reset('');
+    this.addingNewNominee.set(true);
+  }
+
+  confirmAddNewNominee(): void {
+    this.newNomineeEmailControl.markAsTouched();
+    if (this.newNomineeEmailControl.invalid) {
+      return;
+    }
+
+    const email = (this.newNomineeEmailControl.value ?? '').trim().toLowerCase();
+    this.form.get('nomineeEmail')!.setValue(email);
+    this.form.get('nomineeEmail')!.markAsTouched();
+    this.newNomineeConfirmed.set(true);
+    this.addingNewNominee.set(false);
+    this.showSuggestions.set(false);
+  }
+
+  cancelAddNewNominee(): void {
+    this.addingNewNominee.set(false);
+    this.newNomineeEmailControl.reset('');
   }
 
   isCategorySelected(category: GritCategory): boolean {
@@ -136,6 +173,7 @@ export class NominatePageComponent implements OnInit {
       .create({
         isAnonymous: !!value.isAnonymous,
         nomineeEmail: value.nomineeEmail!,
+        nomineeName: this.newNomineeConfirmed() ? this.nomineeQuery().trim() : undefined,
         gritCategories: value.gritCategories!,
         reason: value.reason!.trim(),
       })
@@ -144,6 +182,8 @@ export class NominatePageComponent implements OnInit {
           this.submitting.set(false);
           this.submitted.set(true);
           this.nomineeQuery.set('');
+          this.newNomineeConfirmed.set(false);
+          this.addingNewNominee.set(false);
           this.form.reset({ isAnonymous: false, nomineeEmail: '', gritCategories: [] });
         },
         error: (err: HttpErrorResponse) => {

@@ -5,8 +5,9 @@ import { GritCategory } from '../models/grit-category';
 import {
   CreateNominationPayload,
   Nomination,
-  ToggleUpvoteResult,
+  ToggleReactionResult,
 } from '../models/nomination.model';
+import { ReactionType } from '../models/reaction-type';
 
 @Injectable({ providedIn: 'root' })
 export class NominationService {
@@ -32,7 +33,9 @@ export class NominationService {
     return this.http.get<Nomination[]>(this.baseUrl, { params });
   }
 
-  toggleUpvote(nominationId: string): Observable<ToggleUpvoteResult> {
-    return this.http.post<ToggleUpvoteResult>(`${this.baseUrl}/${nominationId}/upvote`, {});
+  toggleReaction(nominationId: string, type: ReactionType): Observable<ToggleReactionResult> {
+    return this.http.post<ToggleReactionResult>(`${this.baseUrl}/${nominationId}/reactions`, {
+      type,
+    });
   }
 }

@@ -135,11 +135,19 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: 0.6rem;
   }
 }
 
-.upvote-btn {
+.reaction-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.reaction-btn {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -147,14 +155,14 @@
   background: #fff;
   color: var(--bw-text-muted);
   border-radius: 999px;
-  padding: 0.3rem 0.75rem;
+  padding: 0.3rem 0.65rem;
   font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
 
-  &:hover:not(.disabled) {
+  &:hover {
     border-color: var(--bw-blue);
     color: var(--bw-blue);
   }
@@ -163,11 +171,6 @@
     background: var(--bw-blue);
     border-color: var(--bw-blue);
     color: #fff;
-  }
-
-  &.disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
   }
 
   &__icon {
