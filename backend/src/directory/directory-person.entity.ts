@@ -1,4 +1,13 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { Team } from '../teams/team.entity';
 
 /**
  * The nominate-able roster, imported from a Slack member-list CSV export by an admin.
@@ -15,6 +24,13 @@ export class DirectoryPerson {
 
   @Column()
   name: string;
+
+  @Column({ nullable: true })
+  teamId: string | null;
+
+  @ManyToOne(() => Team, (team) => team.members, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'teamId' })
+  team: Team | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

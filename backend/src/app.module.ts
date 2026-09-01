@@ -15,6 +15,8 @@ import { NominationsModule } from './nominations/nominations.module';
 import { PeopleModule } from './people/people.module';
 import { Round } from './rounds/round.entity';
 import { RoundsModule } from './rounds/rounds.module';
+import { Team } from './teams/team.entity';
+import { TeamsModule } from './teams/teams.module';
 import { User } from './users/user.entity';
 import { UsersModule } from './users/users.module';
 
@@ -31,7 +33,7 @@ import { UsersModule } from './users/users.module';
         username: configService.get<string>('DB_USER', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'postgres'),
         database: configService.get<string>('DB_NAME', 'grit_wheel'),
-        entities: [Nomination, Round, NominationUpvote, User, DirectoryPerson],
+        entities: [Nomination, Round, NominationUpvote, User, DirectoryPerson, Team],
         synchronize: true,
       }),
     }),
@@ -43,6 +45,7 @@ import { UsersModule } from './users/users.module';
     AnalyticsModule,
     DirectoryModule,
     UsersModule,
+    TeamsModule,
   ],
   // Order matters: Nest runs global guards in registration order, so JwtAuthGuard
   // populates request.user before RolesGuard reads the roles off it.

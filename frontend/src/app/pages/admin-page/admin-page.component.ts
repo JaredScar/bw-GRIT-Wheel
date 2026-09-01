@@ -16,6 +16,7 @@ export class AdminPageComponent {
     { path: 'rounds', label: 'Rounds & wheel' },
     { path: 'directory', label: 'Nominee directory' },
     { path: 'users', label: 'Manage users' },
+    { path: 'teams', label: 'Teams' },
     { path: 'analytics', label: 'Analytics' },
   ];
 }
