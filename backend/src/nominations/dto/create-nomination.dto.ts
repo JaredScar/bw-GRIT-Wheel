@@ -1,4 +1,15 @@
-import { ArrayMinSize, IsArray, IsBoolean, IsEmail, IsEnum, IsNotEmpty, IsOptional, MaxLength, MinLength } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { GritCategory } from '../../common/grit-category.enum';
 
 export class CreateNominationDto {
@@ -8,6 +19,13 @@ export class CreateNominationDto {
 
   @IsEmail({}, { message: 'Please select the nominee from the list' })
   nomineeEmail: string;
+
+  // Only used when nomineeEmail isn't already in the directory — lets the nominator
+  // add a new person on the spot instead of being blocked until the next roster import.
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  nomineeName?: string;
 
   @IsArray()
   @ArrayMinSize(1, { message: 'Please select at least one GRIT value' })

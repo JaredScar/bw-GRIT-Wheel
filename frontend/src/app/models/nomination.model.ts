@@ -25,6 +25,9 @@ export interface ToggleReactionResult {
 export interface CreateNominationPayload {
   isAnonymous: boolean;
   nomineeEmail: string;
+  // Only needed when nomineeEmail isn't already in the directory, so the backend can
+  // add the new person and connect them to this nomination.
+  nomineeName?: string;
   gritCategories: GritCategory[];
   reason: string;
 }

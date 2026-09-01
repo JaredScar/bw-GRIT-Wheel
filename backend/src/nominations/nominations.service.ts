@@ -54,9 +54,12 @@ export class NominationsService {
   ) {}
 
   async create(dto: CreateNominationDto, nominator: SessionUser): Promise<PublicNomination> {
-    const nominee = await this.directoryService.findByEmail(dto.nomineeEmail);
+    let nominee = await this.directoryService.findByEmail(dto.nomineeEmail);
     if (!nominee) {
-      throw new BadRequestException('Please select the nominee from the list');
+      if (!dto.nomineeName?.trim()) {
+        throw new BadRequestException('Please select the nominee from the list');
+      }
+      nominee = await this.directoryService.addPerson(dto.nomineeEmail, dto.nomineeName);
     }
 
     const currentRound = await this.roundsService.getOrCreateCurrentOpenRound();
