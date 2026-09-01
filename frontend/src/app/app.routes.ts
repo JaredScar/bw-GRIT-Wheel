@@ -55,6 +55,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'teams',
+        loadComponent: () =>
+          import('./pages/admin-teams-page/admin-teams-page.component').then(
+            (m) => m.AdminTeamsPageComponent,
+          ),
+      },
+      {
         path: 'analytics',
         loadComponent: () =>
           import('./pages/admin-analytics-page/admin-analytics-page.component').then(

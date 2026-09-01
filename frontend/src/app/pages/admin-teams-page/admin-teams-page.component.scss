@@ -1,0 +1,67 @@
+.new-team-card {
+  margin-bottom: 1.5rem;
+
+  h2 {
+    margin-top: 0;
+  }
+}
+
+.new-team-form {
+  margin-top: 0.5rem;
+
+  &__fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+}
+
+.person-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bw-bg);
+  border: 1px solid var(--bw-border);
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--bw-text);
+  }
+
+  &__email {
+    font-size: 0.78rem;
+    color: var(--bw-text-muted);
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
+}
+
+.btn-ghost {
+  background: none;
+  border: none;
+  color: var(--bw-text-muted);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0.4rem 0.1rem;
+
+  &:hover:not(:disabled) {
+    color: var(--bw-danger);
+  }
+}

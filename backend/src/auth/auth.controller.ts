@@ -1,4 +1,16 @@
-import { Body, Controller, Get, HttpCode, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import type { CookieOptions, Request, Response } from 'express';
@@ -69,6 +81,44 @@ export class AuthController {
     }
 
     const { jwt } = await this.authService.signInWithGoogleProfile(profile);
+
+    res.cookie(SESSION_COOKIE_NAME, jwt, {
+      ...this.baseCookieOptions,
+      maxAge: SESSION_COOKIE_MAX_AGE_MS,
+    });
+
+    res.redirect(`${this.frontendUrl}/nominate`);
+  }
+
+  /**
+   * Local-testing-only bypass for Google sign-in, since there's no other way to get a
+   * session without registering a real OAuth app. Inert unless DEV_LOGIN_ENABLED=true
+   * is explicitly set — never wired into docker-compose.prod.yml, so it can't reach a
+   * real deployment even if this image were mistakenly reused there.
+   */
+  @Public()
+  @Get('dev-login')
+  async devLogin(
+    @Query('email') email: string | undefined,
+    @Query('name') name: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    if (this.configService.get<string>('DEV_LOGIN_ENABLED') !== 'true') {
+      throw new NotFoundException();
+    }
+
+    const targetEmail = (email ?? this.configService.get<string>('ADMIN_EMAILS', '').split(',')[0])
+      .trim()
+      .toLowerCase();
+    if (!isBitwardenEmail(targetEmail)) {
+      throw new BadRequestException('Provide a valid @bitwarden.com email');
+    }
+
+    const { jwt } = await this.authService.signInWithGoogleProfile({
+      email: targetEmail,
+      name: name?.trim() || null,
+      picture: null,
+    });
 
     res.cookie(SESSION_COOKIE_NAME, jwt, {
       ...this.baseCookieOptions,

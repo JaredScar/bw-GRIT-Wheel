@@ -1,0 +1,23 @@
+<div class="combobox">
+  <span class="combobox__icon" aria-hidden="true">🔍</span>
+  <input
+    type="text"
+    autocomplete="off"
+    [value]="query()"
+    [placeholder]="placeholder"
+    (input)="onInput($any($event.target).value)"
+    (focus)="onFocus()"
+    (blur)="onBlur()"
+  />
+  @if (showSuggestions() && matches().length > 0) {
+    <ul class="combobox__list">
+      @for (person of matches(); track person.email) {
+        <li>
+          <button type="button" (mousedown)="pick(person, $event)">{{ person.name }}</button>
+        </li>
+      }
+    </ul>
+  } @else if (showSuggestions() && query().trim()) {
+    <div class="combobox__empty">{{ emptyMessage }}</div>
+  }
+</div>

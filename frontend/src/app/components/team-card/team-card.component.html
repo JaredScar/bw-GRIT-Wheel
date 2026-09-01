@@ -1,0 +1,112 @@
+<div class="card team-card">
+  <div class="team-card__header">
+    @if (editingName) {
+      <input
+        type="text"
+        class="inline-edit"
+        [value]="nameDraft"
+        (input)="nameDraft = $any($event.target).value"
+        (keydown.enter)="saveName()"
+        (keydown.escape)="cancelEditingName()"
+      />
+      <div class="team-card__header-actions">
+        <button type="button" class="btn btn-primary btn-small" [disabled]="busy" (click)="saveName()">
+          Save
+        </button>
+        <button type="button" class="btn btn-secondary btn-small" (click)="cancelEditingName()">
+          Cancel
+        </button>
+      </div>
+    } @else {
+      <h3>{{ team.name }}</h3>
+      <div class="team-card__header-actions">
+        <button
+          type="button"
+          class="btn btn-secondary btn-small"
+          [disabled]="busy"
+          (click)="startEditingName()"
+        >
+          Rename
+        </button>
+        <button
+          type="button"
+          class="btn btn-danger btn-small"
+          [disabled]="busy"
+          (click)="deleteRequested.emit()"
+        >
+          Delete
+        </button>
+      </div>
+    }
+  </div>
+
+  <div class="team-card__section">
+    <span class="team-card__label">Manager</span>
+    @if (editingManager) {
+      <div class="team-card__manager-edit">
+        <app-person-combobox
+          [people]="directory"
+          [excludeEmails]="managerExcludeEmails"
+          placeholder="Search for a manager..."
+          (picked)="pickManager($event)"
+        ></app-person-combobox>
+        <button type="button" class="btn btn-secondary btn-small" (click)="cancelEditingManager()">
+          Cancel
+        </button>
+      </div>
+    } @else if (team.manager) {
+      <div class="person-row">
+        <app-avatar [email]="team.manager.email" [name]="team.manager.name" [size]="34"></app-avatar>
+        <div class="person-row__info">
+          <span class="person-row__name">{{ team.manager.name }}</span>
+          <span class="person-row__email">{{ team.manager.email }}</span>
+        </div>
+        <div class="person-row__actions">
+          <button type="button" class="btn btn-secondary btn-small" [disabled]="busy" (click)="startEditingManager()">
+            Change
+          </button>
+          <button type="button" class="btn-ghost" [disabled]="busy" (click)="clearManager()">
+            Remove
+          </button>
+        </div>
+      </div>
+    } @else {
+      <div class="team-card__empty-row">
+        <span class="hint">No manager assigned</span>
+        <button type="button" class="btn btn-secondary btn-small" [disabled]="busy" (click)="startEditingManager()">
+          Assign a manager
+        </button>
+      </div>
+    }
+  </div>
+
+  <div class="team-card__section">
+    <span class="team-card__label">Members ({{ team.members.length }})</span>
+    @if (team.members.length > 0) {
+      <ul class="member-chip-list">
+        @for (member of team.members; track member.email) {
+          <li class="member-chip">
+            <app-avatar [email]="member.email" [name]="member.name" [size]="22"></app-avatar>
+            <span>{{ member.name }}</span>
+            <button
+              type="button"
+              [disabled]="busy"
+              title="Remove from team"
+              (click)="removeMember.emit(member.email)"
+            >
+              ×
+            </button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="hint team-card__no-members">No members yet.</p>
+    }
+    <app-person-combobox
+      [people]="directory"
+      [excludeEmails]="memberEmails"
+      placeholder="Add a member..."
+      (picked)="pickMember($event)"
+    ></app-person-combobox>
+  </div>
+</div>

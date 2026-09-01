@@ -34,6 +34,9 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?Set GOOGLE_CLIENT_SECRET in your .env file}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      # Opt-in bypass for local testing without a real Google OAuth app — see
+      # AuthController.devLogin. Leave unset/false everywhere else.
+      DEV_LOGIN_ENABLED: ${DEV_LOGIN_ENABLED:-false}
     depends_on:
       db:
         condition: service_healthy

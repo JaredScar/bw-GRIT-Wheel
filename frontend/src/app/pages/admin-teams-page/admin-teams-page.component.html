@@ -1,0 +1,91 @@
+<div class="card new-team-card">
+  <h2>Set up teams</h2>
+  <p class="hint">
+    Create a team, assign a manager, and add directory people as members. This lays the
+    groundwork for letting managers filter results down to their own team later.
+  </p>
+
+  @if (directoryLoadError()) {
+    <div class="banner banner-error">{{ directoryLoadError() }}</div>
+  }
+  @if (teamsError()) {
+    <div class="banner banner-error">{{ teamsError() }}</div>
+  }
+
+  <form class="new-team-form" [formGroup]="newTeamForm" (ngSubmit)="createTeam()">
+    @if (createTeamError()) {
+      <div class="banner banner-error">{{ createTeamError() }}</div>
+    }
+    <div class="new-team-form__fields">
+      <div class="form-field">
+        <label for="newTeamName">Team name</label>
+        <input id="newTeamName" type="text" formControlName="name" placeholder="Platform Engineering" />
+      </div>
+      <div class="form-field">
+        <label>Manager (optional)</label>
+        @if (newTeamManagerEmail()) {
+          <div class="person-row">
+            <app-avatar [email]="newTeamManagerEmail()" [name]="newTeamManagerName()" [size]="34"></app-avatar>
+            <div class="person-row__info">
+              <span class="person-row__name">{{ newTeamManagerName() }}</span>
+              <span class="person-row__email">{{ newTeamManagerEmail() }}</span>
+            </div>
+            <div class="person-row__actions">
+              <button type="button" class="btn-ghost" (click)="clearNewTeamManager()">Change</button>
+            </div>
+          </div>
+        } @else {
+          <app-person-combobox
+            [people]="directory()"
+            placeholder="Search for a manager..."
+            (picked)="pickNewTeamManager($event)"
+          ></app-person-combobox>
+        }
+      </div>
+    </div>
+    <button class="btn btn-primary" type="submit" [disabled]="creatingTeam()">
+      {{ creatingTeam() ? 'Creating...' : 'Create team' }}
+    </button>
+  </form>
+</div>
+
+@if (teamActionError()) {
+  <div class="banner banner-error">{{ teamActionError() }}</div>
+}
+
+@if (loadingTeams()) {
+  <p class="hint">Loading teams...</p>
+} @else if (teams().length === 0) {
+  <p class="hint">No teams yet. Create one above to get started.</p>
+} @else {
+  @for (team of teams(); track team.id) {
+    <app-team-card
+      [team]="team"
+      [directory]="directory()"
+      [busy]="busyTeamId() === team.id"
+      (rename)="onRename(team, $event)"
+      (changeManager)="onChangeManager(team, $event)"
+      (addMember)="onAddMember(team, $event)"
+      (removeMember)="onRemoveMember(team, $event)"
+      (deleteRequested)="confirmDeleteTeam(team)"
+    ></app-team-card>
+  }
+}
+
+@if (teamPendingDelete(); as teamToDelete) {
+  <app-confirm-dialog
+    title="Delete this team?"
+    [message]="
+      'This permanently deletes ' +
+      teamToDelete.name +
+      '. Its ' +
+      teamToDelete.members.length +
+      ' member(s) will be unassigned from the team, but are not otherwise affected. This cannot be undone.'
+    "
+    confirmLabel="Delete team"
+    [confirming]="deletingTeam()"
+    [error]="deleteTeamError()"
+    (confirmed)="deleteTeam()"
+    (cancelled)="cancelDeleteTeam()"
+  ></app-confirm-dialog>
+}
