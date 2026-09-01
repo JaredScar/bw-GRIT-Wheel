@@ -3,6 +3,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import type { SessionUser } from '../auth/session-user';
 import { GritCategory } from '../common/grit-category.enum';
 import { CreateNominationDto } from './dto/create-nomination.dto';
+import { ToggleReactionDto } from './dto/toggle-reaction.dto';
 import { NominationsService } from './nominations.service';
 
 @Controller('nominations')
@@ -34,8 +35,12 @@ export class NominationsController {
     return this.nominationsService.findOnePublic(id, user.email);
   }
 
-  @Post(':id/upvote')
-  toggleUpvote(@Param('id') id: string, @CurrentUser() user: SessionUser) {
-    return this.nominationsService.toggleUpvote(id, user.email);
+  @Post(':id/reactions')
+  toggleReaction(
+    @Param('id') id: string,
+    @Body() dto: ToggleReactionDto,
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.nominationsService.toggleReaction(id, user.email, dto.type);
   }
 }

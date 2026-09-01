@@ -115,7 +115,6 @@ export class AdminRoundsPageComponent implements OnInit, OnDestroy {
     this.roundService.getCurrent().subscribe({
       next: (round) => {
         this.currentRound.set(round);
-        this.winner.set(null);
         this.loadWheelEntries(round.id);
 
         if (round.status === RoundStatus.COMPLETED && round.winnerNomineeEmail) {
@@ -191,6 +190,8 @@ export class AdminRoundsPageComponent implements OnInit, OnDestroy {
     this.spinError.set(null);
     this.testResult.set(null);
     this.testResultNominations.set([]);
+    this.winner.set(null);
+    this.winnerNominations.set([]);
     this.spinning.set(true);
 
     this.roundService.spin(round.id, this.weightedWheel()).subscribe({
