@@ -1,0 +1,161 @@
+<div class="card access-card">
+  <h2>Access control</h2>
+  <p class="hint">
+    Every non-admin account is assigned one access role, which decides what it can see and
+    do. Admins always have full access and are not affected by these roles. Assign roles to
+    people on the <strong>Manage users</strong> tab.
+  </p>
+
+  @if (loadError()) {
+    <div class="banner banner-error">{{ loadError() }}</div>
+  }
+  @if (saveError()) {
+    <div class="banner banner-error">{{ saveError() }}</div>
+  }
+
+  @if (loading()) {
+    <p class="hint">Loading roles...</p>
+  } @else {
+    <div class="roles">
+      @for (role of roles(); track role.id) {
+        <section class="role">
+          <header class="role__header">
+            <div class="role__title">
+              <h3>{{ role.name }}</h3>
+              @if (role.isDefault) {
+                <span class="badge badge-default" title="New accounts are created with this role">
+                  Default
+                </span>
+              }
+              @if (role.isSystem) {
+                <span class="badge badge-system" title="Built-in role — cannot be renamed or deleted">
+                  Built-in
+                </span>
+              }
+            </div>
+            <span class="role__members">
+              {{ role.memberCount }} {{ role.memberCount === 1 ? 'account' : 'accounts' }}
+            </span>
+          </header>
+
+          @if (role.description) {
+            <p class="role__description">{{ role.description }}</p>
+          }
+
+          <ul class="permissions">
+            @for (permission of catalog(); track permission.key) {
+              <li class="permissions__item">
+                <label>
+                  <input
+                    type="checkbox"
+                    [checked]="isGranted(role, permission.key)"
+                    (change)="togglePermission(role, permission.key)"
+                  />
+                  <span class="permissions__label">{{ permission.label }}</span>
+                </label>
+                <span class="permissions__description">{{ permission.description }}</span>
+              </li>
+            }
+          </ul>
+
+          @for (warning of unmetPrerequisites(role); track warning) {
+            <p class="role__warning">⚠️ {{ warning }}</p>
+          }
+
+          <footer class="role__actions">
+            @if (hasUnsavedChanges(role)) {
+              <button
+                type="button"
+                class="btn btn-primary btn-small"
+                [disabled]="savingRoleId() === role.id"
+                (click)="saveRole(role)"
+              >
+                {{ savingRoleId() === role.id ? 'Saving...' : 'Save changes' }}
+              </button>
+              <button type="button" class="btn btn-secondary btn-small" (click)="discardChanges(role)">
+                Discard
+              </button>
+            }
+            @if (!role.isDefault) {
+              <button
+                type="button"
+                class="btn btn-secondary btn-small"
+                title="New accounts will be created with this role"
+                [disabled]="savingRoleId() === role.id"
+                (click)="makeDefault(role)"
+              >
+                Make default
+              </button>
+            }
+            @if (!role.isSystem && !role.isDefault) {
+              <button type="button" class="btn btn-danger btn-small" (click)="confirmDelete(role)">
+                Delete role
+              </button>
+            }
+          </footer>
+        </section>
+      }
+    </div>
+  }
+</div>
+
+<div class="card access-card">
+  <h2>Add a role</h2>
+  <p class="hint">
+    Create a role for a group of people who should see a specific slice of the app.
+  </p>
+
+  @if (createError()) {
+    <div class="banner banner-error">{{ createError() }}</div>
+  }
+
+  <form class="new-role" [formGroup]="newRoleForm" (ngSubmit)="createRole()">
+    <div class="new-role__fields">
+      <div class="form-field">
+        <label for="newRoleName">Role name</label>
+        <input id="newRoleName" type="text" formControlName="name" placeholder="Read only" />
+      </div>
+      <div class="form-field">
+        <label for="newRoleDescription">Description (optional)</label>
+        <input
+          id="newRoleDescription"
+          type="text"
+          formControlName="description"
+          placeholder="Can browse nominations but not submit them"
+        />
+      </div>
+    </div>
+
+    <ul class="permissions">
+      @for (permission of catalog(); track permission.key) {
+        <li class="permissions__item">
+          <label>
+            <input
+              type="checkbox"
+              [checked]="isNewRolePermissionGranted(permission.key)"
+              (change)="toggleNewRolePermission(permission.key)"
+            />
+            <span class="permissions__label">{{ permission.label }}</span>
+          </label>
+          <span class="permissions__description">{{ permission.description }}</span>
+        </li>
+      }
+    </ul>
+
+    <button class="btn btn-primary new-role__submit" type="submit" [disabled]="creating()">
+      {{ creating() ? 'Creating...' : 'Create role' }}
+    </button>
+  </form>
+</div>
+
+@if (rolePendingDelete(); as roleToDelete) {
+  <app-confirm-dialog
+    title="Delete this role?"
+    [message]="deleteMessageFor(roleToDelete)"
+    confirmLabel="Delete role"
+    [confirming]="deleting()"
+    [error]="deleteError()"
+    (confirmed)="deleteRole()"
+    (cancelled)="cancelDelete()"
+  ></app-confirm-dialog>
+}

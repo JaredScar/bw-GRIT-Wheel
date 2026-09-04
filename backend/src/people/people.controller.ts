@@ -1,6 +1,13 @@
 import { Controller, Get, Param } from '@nestjs/common';
+import { Permission } from '../access-control/permission.enum';
+import { RequirePermissions } from '../access-control/permissions.decorator';
 import { PeopleService } from './people.service';
 
+/**
+ * Every route here reports per-person nomination history or aggregates of it, so the whole
+ * controller sits behind the same permission as the profile pages it backs.
+ */
+@RequirePermissions(Permission.PersonView)
 @Controller('people')
 export class PeopleController {
   constructor(private readonly peopleService: PeopleService) {}

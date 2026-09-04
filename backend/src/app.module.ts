@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AccessControlModule } from './access-control/access-control.module';
+import { AccessRole } from './access-control/access-role.entity';
+import { PermissionsGuard } from './access-control/permissions.guard';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -31,10 +34,11 @@ import { UsersModule } from './users/users.module';
         username: configService.get<string>('DB_USER', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'postgres'),
         database: configService.get<string>('DB_NAME', 'grit_wheel'),
-        entities: [Nomination, Round, NominationUpvote, User, DirectoryPerson],
+        entities: [Nomination, Round, NominationUpvote, User, DirectoryPerson, AccessRole],
         synchronize: true,
       }),
     }),
+    AccessControlModule,
     AuthModule,
     NominationsModule,
     RoundsModule,
@@ -45,10 +49,12 @@ import { UsersModule } from './users/users.module';
     UsersModule,
   ],
   // Order matters: Nest runs global guards in registration order, so JwtAuthGuard
-  // populates request.user before RolesGuard reads the roles off it.
+  // populates request.user before RolesGuard and PermissionsGuard read roles and
+  // permissions off it.
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
 export class AppModule {}

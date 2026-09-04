@@ -7,9 +7,15 @@
     </a>
     @if (authService.currentUser(); as user) {
       <nav class="app-header__nav">
-        <a routerLink="/nominate" routerLinkActive="active">Nominate</a>
-        <a routerLink="/nominations" routerLinkActive="active">Nominations</a>
-        <a routerLink="/rounds" routerLinkActive="active">GRIT Hall of Names</a>
+        @if (authService.can('nomination:create')) {
+          <a routerLink="/nominate" routerLinkActive="active">Nominate</a>
+        }
+        @if (authService.can('nomination:view')) {
+          <a routerLink="/nominations" routerLinkActive="active">Nominations</a>
+        }
+        @if (authService.can('hall:view')) {
+          <a routerLink="/rounds" routerLinkActive="active">GRIT Hall of Names</a>
+        }
         <!-- Leaderboard link temporarily hidden; see app.routes.ts -->
         @if (authService.isAdmin()) {
           <a routerLink="/admin" routerLinkActive="active">Admin</a>

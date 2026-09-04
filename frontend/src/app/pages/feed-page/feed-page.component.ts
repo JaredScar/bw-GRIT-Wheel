@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../components/avatar/avatar.component';
@@ -10,6 +10,7 @@ import {
 } from '../../models/grit-category';
 import { Nomination } from '../../models/nomination.model';
 import { REACTION_EMOJI, REACTION_LABELS, REACTION_TYPES, ReactionType } from '../../models/reaction-type';
+import { AuthService } from '../../services/auth.service';
 import { NominationService } from '../../services/nomination.service';
 
 @Component({
@@ -20,6 +21,8 @@ import { NominationService } from '../../services/nomination.service';
   styleUrl: './feed-page.component.scss',
 })
 export class FeedPageComponent implements OnInit {
+  readonly authService = inject(AuthService);
+
   readonly gritCategories = GRIT_CATEGORIES;
   readonly categoryLabels = GRIT_CATEGORY_LABELS;
   readonly reactionTypes = REACTION_TYPES;

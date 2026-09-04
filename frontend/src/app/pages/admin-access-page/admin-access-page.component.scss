@@ -1,0 +1,128 @@
+.access-card {
+  margin-bottom: 1.5rem;
+
+  h2 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  // Intro copy sits directly in the card — give it room before the first control.
+  > .hint {
+    margin: 0 0 1.5rem;
+  }
+}
+
+.roles {
+  display: grid;
+  gap: 1rem;
+}
+
+.role {
+  border: 1px solid var(--bw-border);
+  border-radius: 8px;
+  padding: 1rem;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    h3 {
+      margin: 0;
+      font-size: 1.05rem;
+      color: var(--bw-navy);
+    }
+  }
+
+  &__members {
+    color: var(--bw-text-muted);
+    font-size: 0.82rem;
+  }
+
+  &__description {
+    margin: 0.4rem 0 0;
+    color: var(--bw-text-muted);
+    font-size: 0.88rem;
+  }
+
+  &__warning {
+    margin: 0.5rem 0 0;
+    font-size: 0.82rem;
+    color: #8a6300;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+  }
+}
+
+.permissions {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+
+  &__item {
+    display: grid;
+    gap: 0.3rem;
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      font-size: 0.92rem;
+    }
+  }
+
+  &__label {
+    font-weight: 600;
+    color: var(--bw-text);
+  }
+
+  &__description {
+    // Lines up under the label rather than the checkbox.
+    padding-left: 1.6rem;
+    color: var(--bw-text-muted);
+    font-size: 0.82rem;
+  }
+}
+
+.new-role {
+  &__fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0 1.25rem;
+  }
+
+  // Sets the permission checkboxes apart from the name/description inputs above.
+  .permissions {
+    margin-top: 0.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--bw-border);
+  }
+
+  &__submit {
+    margin-top: 1.75rem;
+  }
+}
+
+.badge-default {
+  background: var(--bw-blue);
+}
+
+.badge-system {
+  background: var(--bw-navy);
+}

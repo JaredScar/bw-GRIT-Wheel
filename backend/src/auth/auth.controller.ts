@@ -1,10 +1,23 @@
-import { Body, Controller, Get, HttpCode, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import type { CookieOptions, Request, Response } from 'express';
 import { isBitwardenEmail } from '../common/bitwarden-email.validator';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
+import { isDevLoginEnabled } from './dev-login.enabled';
+import { DevLoginDto } from './dto/dev-login.dto';
 import { UpdateDisplayNameDto } from './dto/update-display-name.dto';
 import { GoogleOAuthService } from './google-oauth.service';
 import { SESSION_COOKIE_NAME } from './jwt-auth.guard';
@@ -45,7 +58,8 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    const expectedState = req.cookies?.[OAUTH_STATE_COOKIE_NAME] as string | undefined;
+    const expectedState = req.cookies?.[OAUTH_STATE_COOKIE_NAME] as
+      string | undefined;
     res.clearCookie(OAUTH_STATE_COOKIE_NAME, { path: '/' });
 
     if (error || !code) {
@@ -78,13 +92,53 @@ export class AuthController {
     res.redirect(`${this.frontendUrl}/nominate`);
   }
 
+  /**
+   * Unauthenticated so the login page can decide whether to offer the dev sign-in form.
+   * Advertises only whether the bypass is available, never any credential.
+   */
+  @Public()
+  @Get('config')
+  config() {
+    return { devLoginEnabled: isDevLoginEnabled(this.configService) };
+  }
+
+  /**
+   * Local-development sign-in bypass — see dev-login.enabled.ts. Responds 404 when
+   * disabled so a production deployment doesn't even advertise the route's existence.
+   */
+  @Public()
+  @Post('dev-login')
+  @HttpCode(200)
+  async devLogin(
+    @Body() dto: DevLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!isDevLoginEnabled(this.configService)) {
+      throw new NotFoundException();
+    }
+
+    const { jwt, user } = await this.authService.signInAsDevUser(dto.email);
+
+    res.cookie(SESSION_COOKIE_NAME, jwt, {
+      ...this.baseCookieOptions,
+      maxAge: SESSION_COOKIE_MAX_AGE_MS,
+    });
+
+    // Re-read so the access role is joined and the response matches GET /me exactly.
+    const withRole = (await this.authService.getUserById(user.id)) ?? user;
+    return this.authService.toSessionUser(withRole);
+  }
+
   @Get('me')
   me(@CurrentUser() user: SessionUser) {
     return user;
   }
 
   @Patch('me')
-  async updateMe(@Body() dto: UpdateDisplayNameDto, @CurrentUser() user: SessionUser) {
+  async updateMe(
+    @Body() dto: UpdateDisplayNameDto,
+    @CurrentUser() user: SessionUser,
+  ) {
     const updated = await this.authService.updateDisplayName(user.id, dto.name);
     return this.authService.toSessionUser(updated);
   }

@@ -28,5 +28,43 @@
       Only &#64;bitwarden.com accounts can sign in. If you pick a personal Google account,
       we'll send you back here.
     </p>
+
+    @if (devLoginAvailable()) {
+      <div class="dev-login">
+        <span class="dev-login__divider">dev sign-in</span>
+
+        @if (devError()) {
+          <div class="banner banner-error">{{ devError() }}</div>
+        }
+
+        <div class="form-field">
+          <label for="devEmail">&#64;bitwarden.com email</label>
+          <input
+            id="devEmail"
+            type="email"
+            placeholder="you@bitwarden.com"
+            autocomplete="off"
+            [value]="devEmail()"
+            (input)="devEmail.set($any($event.target).value)"
+            (keydown.enter)="devSignIn()"
+          />
+        </div>
+
+        <button
+          class="btn btn-secondary dev-login__submit"
+          type="button"
+          [disabled]="devSigningIn() || !devEmail().trim()"
+          (click)="devSignIn()"
+        >
+          {{ devSigningIn() ? 'Signing in...' : 'Sign in (dev)' }}
+        </button>
+
+        <p class="dev-login__warning">
+          ⚠️ Local development only, because Google OAuth needs a public callback URL. This
+          signs you in as any address with no password. The backend refuses to start if
+          <code>DEV_LOGIN_ENABLED</code> is set anywhere production-like.
+        </p>
+      </div>
+    }
   </div>
 </div>

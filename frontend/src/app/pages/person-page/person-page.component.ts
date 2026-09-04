@@ -1,9 +1,10 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../components/avatar/avatar.component';
 import { GRIT_CATEGORY_LABELS } from '../../models/grit-category';
 import { PersonProfile } from '../../models/person.model';
+import { AuthService } from '../../services/auth.service';
 import { PeopleService } from '../../services/people.service';
 
 @Component({
@@ -14,6 +15,8 @@ import { PeopleService } from '../../services/people.service';
   styleUrl: './person-page.component.scss',
 })
 export class PersonPageComponent implements OnInit {
+  readonly authService = inject(AuthService);
+
   readonly categoryLabels = GRIT_CATEGORY_LABELS;
   readonly profile = signal<PersonProfile | null>(null);
   readonly loading = signal(true);

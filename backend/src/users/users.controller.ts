@@ -23,8 +23,8 @@ export class UsersController {
   }
 
   @Patch(':id')
-  rename(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.usersService.rename(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    return this.usersService.update(id, dto);
   }
 
   @Delete(':id')

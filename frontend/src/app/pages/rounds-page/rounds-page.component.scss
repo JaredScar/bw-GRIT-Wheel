@@ -84,5 +84,14 @@
     &:hover {
       text-decoration: underline;
     }
+
+    // Rendered as a plain div when profile pages aren't permitted.
+    &--plain {
+      cursor: default;
+
+      &:hover {
+        text-decoration: none;
+      }
+    }
   }
 }

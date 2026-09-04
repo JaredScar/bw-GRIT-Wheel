@@ -3,7 +3,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ConfirmDialogComponent } from '../../components/confirm-dialog/confirm-dialog.component';
+import { AccessRole } from '../../models/access-role.model';
 import { ManagedUser } from '../../models/user.model';
+import { AccessControlService } from '../../services/access-control.service';
 import { AuthService } from '../../services/auth.service';
 import { UsersService } from '../../services/users.service';
 
@@ -18,6 +20,7 @@ export class AdminUsersPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   readonly authService = inject(AuthService);
   private readonly usersService = inject(UsersService);
+  private readonly accessControlService = inject(AccessControlService);
 
   readonly newUserForm = this.fb.group({
     email: ['', [Validators.required]],
@@ -37,8 +40,43 @@ export class AdminUsersPageComponent implements OnInit {
   readonly deletingUser = signal(false);
   readonly deleteUserError = signal<string | null>(null);
 
+  readonly accessRoles = signal<AccessRole[]>([]);
+  readonly assigningRoleUserId = signal<string | null>(null);
+  readonly assignRoleError = signal<string | null>(null);
+
   ngOnInit(): void {
     this.loadUsers();
+    this.loadAccessRoles();
+  }
+
+  loadAccessRoles(): void {
+    this.accessControlService.listRoles().subscribe({
+      next: (roles) => this.accessRoles.set(roles),
+      error: (err: HttpErrorResponse) =>
+        this.assignRoleError.set(err.error?.message ?? 'Unable to load access roles.'),
+    });
+  }
+
+  /**
+   * Admins bypass access roles entirely, so their assigned role is shown but has no effect
+   * — the dropdown stays editable for when the account is later demoted.
+   */
+  assignAccessRole(user: ManagedUser, accessRoleId: string): void {
+    if (!accessRoleId || accessRoleId === user.accessRoleId) return;
+
+    this.assignRoleError.set(null);
+    this.assigningRoleUserId.set(user.id);
+
+    this.usersService.assignAccessRole(user.id, accessRoleId).subscribe({
+      next: (updated) => {
+        this.assigningRoleUserId.set(null);
+        this.users.update((users) => users.map((u) => (u.id === updated.id ? updated : u)));
+      },
+      error: (err: HttpErrorResponse) => {
+        this.assigningRoleUserId.set(null);
+        this.assignRoleError.set(err.error?.message ?? 'Unable to change that access role.');
+      },
+    });
   }
 
   loadUsers(): void {

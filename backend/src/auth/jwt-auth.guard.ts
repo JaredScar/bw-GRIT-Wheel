@@ -41,7 +41,7 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Your session is no longer valid');
     }
 
-    request.user = this.authService.toSessionUser(user);
+    request.user = await this.authService.toSessionUser(user);
     return true;
   }
 }

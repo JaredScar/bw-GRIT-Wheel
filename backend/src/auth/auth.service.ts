@@ -3,7 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { AccessControlService } from '../access-control/access-control.service';
+import { ALL_PERMISSIONS } from '../access-control/permission.enum';
 import { User } from '../users/user.entity';
+import { assertDevLoginIsSafe } from './dev-login.enabled';
 import { GoogleProfile } from './google-oauth.service';
 import { Role } from './role.enum';
 import { SessionUser } from './session-user';
@@ -19,9 +22,13 @@ export class AuthService implements OnModuleInit {
     private readonly usersRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly accessControlService: AccessControlService,
   ) {}
 
   async onModuleInit(): Promise<void> {
+    // Throws, deliberately taking the app down, if the dev sign-in bypass is enabled
+    // somewhere it shouldn't be.
+    assertDevLoginIsSafe(this.configService);
     await this.grantAdminToConfiguredEmails();
   }
 
@@ -92,6 +99,7 @@ export class AuthService implements OnModuleInit {
       user = this.usersRepository.create({
         email,
         roles: this.isAdminEmail(email) ? [Role.User, Role.Admin] : [Role.User],
+        accessRoleId: await this.accessControlService.getDefaultRoleId(),
       });
     }
     if (profile.name && !user.nameSetByUser) {
@@ -111,12 +119,34 @@ export class AuthService implements OnModuleInit {
     return { jwt, user };
   }
 
+  /**
+   * Local-development sign-in. Provisions the account exactly as a first Google sign-in
+   * would — including the ADMIN_EMAILS promotion and the default access role — so what you
+   * exercise locally matches production behaviour. Side effect of that reuse: it clears any
+   * stored profile picture, since a dev sign-in carries no Google profile.
+   *
+   * Callers must check `isDevLoginEnabled()` first; this method does not re-check.
+   */
+  async signInAsDevUser(email: string): Promise<{ jwt: string; user: User }> {
+    return this.signInWithGoogleProfile({
+      email,
+      name: null,
+      picture: null,
+    });
+  }
+
   async getUserById(id: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { id } });
+    return this.usersRepository.findOne({
+      where: { id },
+      relations: { accessRole: true },
+    });
   }
 
   async updateDisplayName(userId: string, name: string): Promise<User> {
-    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: { accessRole: true },
+    });
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -126,14 +156,26 @@ export class AuthService implements OnModuleInit {
     return this.usersRepository.save(user);
   }
 
-  toSessionUser(user: User): SessionUser {
+  /**
+   * Async because a session's permissions come from its access role, which may need
+   * loading (or falling back to the default role) when the caller didn't join it.
+   */
+  async toSessionUser(user: User): Promise<SessionUser> {
     const roles = this.rolesOf(user);
+    const isAdmin = roles.includes(Role.Admin);
+
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       roles,
-      isAdmin: roles.includes(Role.Admin),
+      isAdmin,
+      // Admins bypass access roles server-side; handing them the full set keeps the
+      // client's permission checks to a single membership test.
+      permissions: isAdmin
+        ? [...ALL_PERMISSIONS]
+        : await this.accessControlService.permissionsFor(user),
+      accessRoleName: user.accessRole?.name ?? null,
     };
   }
 }

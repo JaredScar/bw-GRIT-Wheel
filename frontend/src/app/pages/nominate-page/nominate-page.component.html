@@ -13,7 +13,9 @@
       <h2>🎉 Nomination submitted!</h2>
       <p>Thanks for taking the time to recognize a teammate. Your nomination is now visible on the public nominations feed.</p>
       <div class="success-actions">
-        <a class="btn btn-secondary" routerLink="/nominations">View all nominations</a>
+        @if (authService.can('nomination:view')) {
+          <a class="btn btn-secondary" routerLink="/nominations">View all nominations</a>
+        }
         <button class="btn btn-primary" type="button" (click)="submitAnother()">Submit another nomination</button>
       </div>
     </div>

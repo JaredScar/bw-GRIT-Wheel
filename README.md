@@ -111,8 +111,8 @@ free-text nominee field. To populate or refresh it:
 ## Project layout
 
 ```
-backend/    NestJS API (Google OAuth sign-in, nominations, rounds, admin)
-frontend/   Angular app (login, nominate form, public feed, rounds/winners, admin + wheel)
+backend/    NestJS API (Google OAuth sign-in, access control, nominations, rounds, admin)
+frontend/   Angular app (login, nominate form, feed, rounds/winners, admin + wheel)
 docker-compose.yml
 ```
 
@@ -214,9 +214,12 @@ decorator, and a global `RolesGuard` that runs after the authentication guard. T
 are two roles today, `user` and `admin`, and they're stored on the `users.roles`
 column, so **admins can be changed without a redeploy**.
 
-Routes without a `@Roles()` decorator are available to any signed-in Bitwarden
-account. Admin-only routes are the round lifecycle (`GET /rounds/current`,
-`GET /rounds/:id/wheel`, `POST /rounds`, `POST /rounds/:id/spin`) and analytics.
+Admin-only routes are the round lifecycle (`GET /rounds/current`,
+`GET /rounds/:id/wheel`, `POST /rounds`, `POST /rounds/:id/spin`), analytics, user
+management, and access control.
+
+What everyone *else* can see is a separate, admin-configurable layer — see
+[Access control (per-feature permissions)](#access-control-per-feature-permissions).
 
 ### How someone becomes an admin
 
@@ -251,6 +254,64 @@ One caveat worth remembering: a database-only demotion of someone who is still l
 in `ADMIN_EMAILS` will be undone the next time the backend boots. To demote them for
 good, remove them from `ADMIN_EMAILS` as well.
 
+## Access control (per-feature permissions)
+
+Admin access (above) decides who can *run* the award. Access control decides what
+everyone else can *see*. The two are deliberately separate: admins bypass access
+control entirely, so no configuration mistake can lock the last admin out of the app.
+
+Every non-admin account is assigned exactly one **access role** — a named set of
+permissions, stored in the `access_roles` table and editable at runtime from
+**Admin → Access control**. No redeploy needed.
+
+### Permissions
+
+| Permission | Unlocks |
+| --- | --- |
+| `nomination:create` | Submitting nominations (`/nominate`) |
+| `nomination:view` | The nominations feed (`/nominations`) |
+| `nomination:react` | Reacting to nominations in the feed |
+| `hall:view` | The GRIT Hall of Names (`/rounds`) |
+| `person:view` | Person profile pages (`/people/:email`) and the roster/leaderboard behind them |
+
+Two roles are seeded on first boot and can't be deleted (their permissions *are*
+editable):
+
+- **Member** — the default. Holds `nomination:create` only, so the feed, the Hall of
+  Names, profiles and reactions all start hidden.
+- **Full Access** — every permission above. Exists so opting someone in is a single
+  dropdown change.
+
+> **Rollout note:** because `Member` is the default, existing accounts lose access to
+> the feed and the Hall of Names the first time this version boots. Move people to
+> **Full Access** (or a custom role) on **Admin → Manage users** to restore it.
+
+### Managing roles
+
+- **Admin → Access control** — tick permissions per role, create custom roles, choose
+  which role new accounts get (`Make default`), and delete custom roles. Deleting a
+  role moves its members to the default role rather than leaving them stranded.
+- **Admin → Manage users** — assign a role to an account from the *Access role* column.
+
+Like admin roles, changes take effect on the person's **very next request**: the
+session cookie holds only a user ID, and permissions are resolved from the database on
+every request, so nobody needs to sign out and back in.
+
+### How it's enforced
+
+Both sides check, and the server is authoritative:
+
+- **Backend** — a `@RequirePermissions()` decorator plus a global `PermissionsGuard`,
+  registered after `RolesGuard`. Endpoints without the decorator stay open to any
+  signed-in account (for example `GET /directory`, which backs the nominee picker).
+- **Frontend** — `AuthService.can()` hides nav links, profile links and reaction
+  buttons, and a `requirePermission()` route guard redirects a denied navigation to
+  whichever page the account *can* reach. An account with nothing navigable lands on
+  `/no-access`.
+
+An account with no role at all (a row predating this feature, or one whose role was
+deleted) resolves to the default role, and is repointed at it on the next boot.
+
 ## Running locally without Docker (development)
 
 **Backend**
@@ -264,6 +325,31 @@ npm run start:dev
 
 You'll need a local PostgreSQL instance matching the `.env` values (or run just the
 `db` service with `docker compose up db`).
+
+### Signing in locally
+
+Google OAuth needs a registered client and a publicly reachable callback URL, so
+**"Continue with Google" cannot work on localhost** with placeholder credentials. For
+local work, set this in `backend/.env`:
+
+```
+DEV_LOGIN_ENABLED=true
+```
+
+`/login` then grows a dev sign-in form: type any `@bitwarden.com` address and you're
+signed in. The account is provisioned exactly as a first Google sign-in would — so an
+address listed in `ADMIN_EMAILS` comes out as an admin, and everyone else lands on the
+default access role.
+
+This is a **real authentication bypass** — it trades a password for an email address.
+It's off unless the variable is set to exactly `true`, the route 404s when it's off,
+and the backend **refuses to boot** if the flag is set alongside `NODE_ENV=production`
+or `COOKIE_SECURE=true`, so it can't reach a deployment unnoticed. See
+`backend/src/auth/dev-login.enabled.ts`.
+
+Alternatively, register a real OAuth client with
+`http://localhost:3000/api/auth/google/callback` as an authorized redirect URI (see
+[Setting up Google sign-in](#setting-up-google-sign-in)) and leave the flag off.
 
 **Frontend**
 
@@ -510,13 +596,15 @@ deploy appears to succeed while the VM quietly keeps running the old images.
 - **Nominate**: once signed in, go to `/nominate`, fill out the form, and submit. Start
   typing the nominee's name and pick them from the directory list; check every GRIT
   value that applies. Your own identity comes from your session automatically.
-- **Nominations**: `/nominations` shows every nomination publicly, filterable by GRIT
-  category and searchable. Click the 👍 button on a nomination from the current round
-  to agree with it. Click a nominee's name/photo to see their full profile.
+- **Nominations**: `/nominations` shows every nomination, filterable by GRIT category
+  and searchable. Click the 👍 button on a nomination from the current round to agree
+  with it. Click a nominee's name/photo to see their full profile. Requires the
+  `nomination:view` permission; reacting requires `nomination:react` and profiles
+  require `person:view`.
 - **Leaderboard**: `/leaderboard` — most-nominated people, crowd favorites, top
   nominators, and category champions.
 - **GRIT Hall of Names**: `/rounds` lists every round, its status, and the winner
-  once the wheel has been spun.
+  once the wheel has been spun. Requires the `hall:view` permission.
 - **Admin**: `/admin` — only visible/usable if you hold the `admin` role. From there
   you can:
   - Import/refresh the nominee directory from a Slack CSV export (see
@@ -528,7 +616,15 @@ deploy appears to succeed while the VM quietly keeps running the old images.
   - View round history
   - Share a winner card as a PNG (or via your device's share sheet) right after a spin,
     or later from `/rounds`
+  - Add, rename, or remove accounts, and set each one's access role, under
+    **Manage users**
+  - Decide what non-admins can see under **Access control** (see
+    [Access control](#access-control-per-feature-permissions))
   - Check the **Analytics** section for totals and category/round breakdowns
+
+Which of the pages above a non-admin actually sees depends on their access role — by
+default, only **Nominate**. Links to pages someone can't open are hidden rather than
+shown and rejected.
 
 ## Notes & assumptions
 
@@ -562,14 +658,19 @@ deploy appears to succeed while the VM quietly keeps running the old images.
   URLs; a stale one 404s and falls back to initials until that person signs in again.
 - Sessions are a signed JWT stored in an `httpOnly` cookie (`grit_session`), valid for
   30 days; there's no separate "remember me" toggle.
-- Authorization is role-based (`user` / `admin`) with roles persisted per user in the
-  database and enforced by a global `RolesGuard`; `ADMIN_EMAILS` seeds and re-grants
-  the `admin` role rather than being checked directly on each request. See
-  [Roles and admin access](#roles-and-admin-access). There are no finer-grained
-  permissions — anyone with `admin` has full admin rights.
-- Roles are read from the database on every request rather than being baked into the
-  session JWT, so promoting or demoting someone takes effect immediately without
-  forcing them to sign in again.
+- Authorization has two independent layers. **Admin rights** are role-based
+  (`user` / `admin`), persisted per user and enforced by a global `RolesGuard`;
+  `ADMIN_EMAILS` seeds and re-grants the `admin` role rather than being checked
+  directly on each request. Anyone with `admin` has full admin rights — there is no
+  finer-grained split *within* admin. What **everyone else** can see is controlled by
+  an assignable access role holding per-feature permissions, enforced by a global
+  `PermissionsGuard`. Admins bypass access roles entirely, so no permission
+  configuration can lock the last admin out. See
+  [Roles and admin access](#roles-and-admin-access) and
+  [Access control](#access-control-per-feature-permissions).
+- Roles and permissions are both read from the database on every request rather than
+  being baked into the session JWT, so promoting, demoting, or changing someone's
+  access role takes effect immediately without forcing them to sign in again.
 - Only the **nominator's** identity can be hidden (anonymous nominations); the
   **nominee** is always shown, since the whole point is public recognition.
 - Nominations are visible immediately upon submission — there is no moderation queue.

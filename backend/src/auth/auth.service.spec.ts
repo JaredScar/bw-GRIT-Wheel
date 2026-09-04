@@ -1,11 +1,14 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
+import { AccessControlService } from '../access-control/access-control.service';
+import { ALL_PERMISSIONS, Permission } from '../access-control/permission.enum';
 import { User } from '../users/user.entity';
 import { AuthService } from './auth.service';
 import { Role } from './role.enum';
 
 const ADMIN_EMAIL = 'admin@bitwarden.com';
+const DEFAULT_ROLE_ID = 'default-role-id';
 
 function createService(seedUsers: Partial<User>[] = []) {
   // Held by reference, not copied, so tests can assert on mutations the service makes.
@@ -23,15 +26,26 @@ function createService(seedUsers: Partial<User>[] = []) {
     save: jest.fn((entity: User | User[]) => Promise.resolve(entity)),
   };
 
+  const accessControl = {
+    getDefaultRoleId: jest.fn().mockResolvedValue(DEFAULT_ROLE_ID),
+    // Mirrors the real service: an account's permissions come from its assigned role.
+    permissionsFor: jest
+      .fn()
+      .mockImplementation((user: User) =>
+        Promise.resolve(user.accessRole?.permissions ?? []),
+      ),
+  };
+
   const service = new AuthService(
     repository as unknown as Repository<User>,
     { signAsync: jest.fn().mockResolvedValue('signed.jwt') } as unknown as JwtService,
     {
       get: (key: string, fallback?: string) => (key === 'ADMIN_EMAILS' ? ADMIN_EMAIL : fallback),
     } as unknown as ConfigService,
+    accessControl as unknown as AccessControlService,
   );
 
-  return { service, repository, users };
+  return { service, repository, users, accessControl };
 }
 
 describe('AuthService roles', () => {
@@ -124,10 +138,10 @@ describe('AuthService roles', () => {
   });
 
   describe('toSessionUser', () => {
-    it('derives isAdmin from the persisted roles, not the env var', () => {
+    it('derives isAdmin from the persisted roles, not the env var', async () => {
       const { service } = createService();
 
-      const admin = service.toSessionUser({
+      const admin = await service.toSessionUser({
         id: '1',
         email: 'someone@bitwarden.com',
         name: 'Someone',
@@ -137,7 +151,7 @@ describe('AuthService roles', () => {
       expect(admin.roles).toEqual([Role.User, Role.Admin]);
 
       // On the allow-list but not yet promoted in the database.
-      const notYetPromoted = service.toSessionUser({
+      const notYetPromoted = await service.toSessionUser({
         id: '2',
         email: ADMIN_EMAIL,
         name: 'Admin',
@@ -146,10 +160,10 @@ describe('AuthService roles', () => {
       expect(notYetPromoted.isAdmin).toBe(false);
     });
 
-    it('falls back to the user role for legacy rows with no roles', () => {
+    it('falls back to the user role for legacy rows with no roles', async () => {
       const { service } = createService();
 
-      const session = service.toSessionUser({
+      const session = await service.toSessionUser({
         id: '1',
         email: 'legacy@bitwarden.com',
         name: null,
@@ -157,6 +171,61 @@ describe('AuthService roles', () => {
 
       expect(session.roles).toEqual([Role.User]);
       expect(session.isAdmin).toBe(false);
+    });
+  });
+
+  describe('toSessionUser permissions', () => {
+    it('reports the permissions of the assigned access role', async () => {
+      const { service } = createService();
+
+      const session = await service.toSessionUser({
+        id: '1',
+        email: 'someone@bitwarden.com',
+        name: 'Someone',
+        roles: [Role.User],
+        accessRoleId: 'role-1',
+        accessRole: {
+          id: 'role-1',
+          name: 'Member',
+          permissions: [Permission.NominationCreate],
+        },
+      } as User);
+
+      expect(session.permissions).toEqual([Permission.NominationCreate]);
+      expect(session.accessRoleName).toBe('Member');
+    });
+
+    it('gives admins every permission regardless of their access role', async () => {
+      const { service, accessControl } = createService();
+
+      const session = await service.toSessionUser({
+        id: '1',
+        email: ADMIN_EMAIL,
+        name: 'Admin',
+        roles: [Role.User, Role.Admin],
+        accessRoleId: 'role-1',
+        accessRole: { id: 'role-1', name: 'Member', permissions: [] },
+      } as unknown as User);
+
+      expect(session.permissions).toEqual([...ALL_PERMISSIONS]);
+      // Short-circuited: no point resolving a role an admin bypasses anyway.
+      expect(accessControl.permissionsFor).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('signInWithGoogleProfile access role', () => {
+    it('puts a brand new account on the default access role', async () => {
+      const { service, repository } = createService();
+
+      await service.signInWithGoogleProfile({
+        email: 'someone@bitwarden.com',
+        name: 'Someone',
+        picture: null,
+      });
+
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ accessRoleId: DEFAULT_ROLE_ID }),
+      );
     });
   });
 });

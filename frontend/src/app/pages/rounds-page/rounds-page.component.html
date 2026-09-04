@@ -28,14 +28,25 @@
 
           @if (round.status === RoundStatus.COMPLETED && round.winnerNomineeName) {
             <div class="winner-banner">
-              <a class="winner-banner__link" [routerLink]="['/people', round.winnerNomineeEmail]">
-                <app-avatar
-                  [email]="round.winnerNomineeEmail"
-                  [name]="round.winnerNomineeName"
-                  [size]="36"
-                ></app-avatar>
-                <span>🏆 Winner: <strong>{{ round.winnerNomineeName }}</strong></span>
-              </a>
+              @if (authService.can('person:view')) {
+                <a class="winner-banner__link" [routerLink]="['/people', round.winnerNomineeEmail]">
+                  <app-avatar
+                    [email]="round.winnerNomineeEmail"
+                    [name]="round.winnerNomineeName"
+                    [size]="36"
+                  ></app-avatar>
+                  <span>🏆 Winner: <strong>{{ round.winnerNomineeName }}</strong></span>
+                </a>
+              } @else {
+                <div class="winner-banner__link winner-banner__link--plain">
+                  <app-avatar
+                    [email]="round.winnerNomineeEmail"
+                    [name]="round.winnerNomineeName"
+                    [size]="36"
+                  ></app-avatar>
+                  <span>🏆 Winner: <strong>{{ round.winnerNomineeName }}</strong></span>
+                </div>
+              }
               <button
                 class="btn btn-secondary btn-small"
                 type="button"
@@ -47,9 +58,11 @@
             </div>
           }
 
-          <a class="btn btn-secondary" [routerLink]="['/nominations']" [queryParams]="{ roundId: round.id }">
-            View nominations for this round
-          </a>
+          @if (authService.can('nomination:view')) {
+            <a class="btn btn-secondary" [routerLink]="['/nominations']" [queryParams]="{ roundId: round.id }">
+              View nominations for this round
+            </a>
+          }
         </div>
       }
     </div>

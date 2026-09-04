@@ -78,7 +78,9 @@
         </div>
       }
 
-      <a class="btn btn-secondary back-link" [routerLink]="['/nominations']">← Back to all nominations</a>
+      @if (authService.can('nomination:view')) {
+        <a class="btn btn-secondary back-link" [routerLink]="['/nominations']">← Back to all nominations</a>
+      }
     }
   }
 </div>

@@ -34,3 +34,37 @@
   font-size: 0.85rem;
   color: var(--bw-text-muted);
 }
+
+// Only rendered when the backend reports DEV_LOGIN_ENABLED=true.
+.dev-login {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px dashed var(--bw-border);
+  text-align: left;
+
+  &__divider {
+    display: block;
+    margin-bottom: 0.9rem;
+    text-align: center;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--bw-text-muted);
+  }
+
+  &__submit {
+    width: 100%;
+  }
+
+  &__warning {
+    margin: 0.9rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: #8a6300;
+
+    code {
+      font-size: 0.95em;
+    }
+  }
+}

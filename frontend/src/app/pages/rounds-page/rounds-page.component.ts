@@ -1,8 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../components/avatar/avatar.component';
 import { Round, RoundStatus } from '../../models/round.model';
+import { AuthService } from '../../services/auth.service';
 import { RoundService } from '../../services/round.service';
 import { WinnerCardService } from '../../services/winner-card.service';
 
@@ -14,6 +15,8 @@ import { WinnerCardService } from '../../services/winner-card.service';
   styleUrl: './rounds-page.component.scss',
 })
 export class RoundsPageComponent implements OnInit {
+  readonly authService = inject(AuthService);
+
   readonly RoundStatus = RoundStatus;
   readonly rounds = signal<Round[]>([]);
   readonly loading = signal(true);

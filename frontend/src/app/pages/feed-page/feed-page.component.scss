@@ -109,6 +109,17 @@
       color: var(--bw-blue);
       text-decoration: underline;
     }
+
+    // Rendered as a plain div when profile pages aren't permitted, so drop the
+    // affordance that says it's clickable.
+    &--plain {
+      cursor: default;
+
+      &:hover h3 {
+        color: var(--bw-navy);
+        text-decoration: none;
+      }
+    }
   }
 
   h3 {
@@ -176,5 +187,15 @@
   &__icon {
     font-size: 0.95rem;
     line-height: 1;
+  }
+}
+
+// Reaction counts for accounts that may read the feed but not react.
+.reaction-btn--readonly {
+  cursor: default;
+
+  &:hover {
+    border-color: var(--bw-border);
+    color: var(--bw-text-muted);
   }
 }
