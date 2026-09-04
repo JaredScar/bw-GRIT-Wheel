@@ -42,7 +42,9 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
   brand-new hire), an admin re-imports an updated CSV to add them.
 - **Every nomination is public immediately** — a feed shows every nomination ever
   submitted (filterable by GRIT category or by round, and searchable by nominee,
-  nominator, or reason text), regardless of who wins.
+  nominator, or reason text), regardless of who wins. There's no approval queue, but an
+  admin can correct or remove a nomination after the fact — see
+  [Editing and deleting nominations](#editing-and-deleting-nominations).
 - **Agree with a nomination** ("+1", Reddit-style): anyone signed in can react to a
   nomination to show they agree — no extra prompt, since you're already
   authenticated. Reactions only work on nominations in the **current, still-open
@@ -71,6 +73,8 @@ The winner of each all-hands round receives $100 towards the Bitwarden swag stor
   [Roles and admin access](#roles-and-admin-access)) can:
   - Import/refresh the nominee directory from a Slack CSV export (see
     [Importing the nominee directory](#importing-the-nominee-directory))
+  - Edit or delete any nomination from the feed (see
+    [Editing and deleting nominations](#editing-and-deleting-nominations))
   - Start a new round (this closes the previous one)
   - Spin an animated wheel — choose between one **equally-weighted** slice per unique
     nominee, or a slice **weighted by nomination count** (people nominated more times
@@ -107,6 +111,50 @@ free-text nominee field. To populate or refresh it:
 5. Re-importing is safe: existing people are matched by email and their name is
    updated if it changed; nobody is ever removed automatically, so re-running an
    older export can't delete people.
+
+## Editing and deleting nominations
+
+Nominations go live the moment they're submitted, so the fixes happen afterwards. Anyone
+holding the `admin` role gets **Edit** and **Delete** buttons on every card in the
+`/nominations` feed; nobody else sees them, and the API rejects the requests regardless of
+what the browser renders.
+
+This is deliberately tied to the `admin` role rather than being an access-control
+permission: rewriting or removing someone else's public recognition is a different kind of
+authority from reading the feed, and it shouldn't be grantable by ticking a box on a custom
+access role. See [Roles and admin access](#roles-and-admin-access).
+
+### Editing
+
+**Edit** opens the nomination in the same form used to create one — nominee (from the same
+directory picker, with the same "add a new nominee" escape hatch), GRIT values, the reason
+text, and whether the nominator is shown or anonymous.
+
+The **nominator is not editable**. It's taken from their verified Google session at
+submission time, and reassigning a nomination to someone who didn't write it would
+undermine the point of that. Only whether their name is *displayed* can be changed.
+
+Edits are recorded: the nomination stores who made the change and when, and the public feed
+shows an "edited" marker next to the date. A correction that changes nothing (opening the
+dialog and saving without touching anything) doesn't mark the nomination as edited.
+
+### Deleting
+
+**Delete** is a soft delete. The row stays in the database with a `deletedAt` timestamp and
+the deleting admin's email, and it immediately drops out of everything: the public feed, the
+wheel for its round, the nominee's profile, the leaderboard, and the analytics totals.
+
+Because nothing is actually destroyed, a misclick is recoverable. Admins get a **Show
+deleted** filter on the feed; deleted nominations appear there dimmed and flagged, with a
+**Restore** button that puts them (and their reactions, which are kept attached) back.
+
+### What can't be changed
+
+One guard applies to both: the specific nomination recorded as a round's winning entry
+(`rounds.winnerNominationId`) can't be deleted, and can't be repointed at a different
+person. Either would leave the round history contradicting the winner that was announced at
+the all-hands. Its wording, GRIT values and anonymity can still be corrected, and *other*
+nominations from that same completed round can still be deleted normally.
 
 ## Project layout
 
@@ -614,6 +662,8 @@ deploy appears to succeed while the VM quietly keeps running the old images.
     slices by number of nominations" beforehand if you want people with more
     nominations to have better odds instead of one equal slice per person
   - View round history
+  - Correct or remove any nomination from the **Nominations** feed (see
+    [Editing and deleting nominations](#editing-and-deleting-nominations))
   - Share a winner card as a PNG (or via your device's share sheet) right after a spin,
     or later from `/rounds`
   - Add, rename, or remove accounts, and set each one's access role, under
@@ -674,6 +724,8 @@ shown and rejected.
 - Only the **nominator's** identity can be hidden (anonymous nominations); the
   **nominee** is always shown, since the whole point is public recognition.
 - Nominations are visible immediately upon submission — there is no moderation queue.
+  Moderation is after the fact instead: an admin can correct or remove a nomination once
+  it's live. See [Editing and deleting nominations](#editing-and-deleting-nominations).
 - By default, the wheel gives each **unique nominee** in a round one equally-weighted
   slice, regardless of how many times they were nominated within that round. The admin
   can opt into weighting slices by nomination count instead, on a per-spin basis; the
