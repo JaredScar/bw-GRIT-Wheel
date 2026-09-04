@@ -109,7 +109,7 @@
     <div class="banner banner-error">{{ createError() }}</div>
   }
 
-  <form [formGroup]="newRoleForm" (ngSubmit)="createRole()">
+  <form class="new-role" [formGroup]="newRoleForm" (ngSubmit)="createRole()">
     <div class="new-role__fields">
       <div class="form-field">
         <label for="newRoleName">Role name</label>
@@ -142,7 +142,7 @@
       }
     </ul>
 
-    <button class="btn btn-primary" type="submit" [disabled]="creating()">
+    <button class="btn btn-primary new-role__submit" type="submit" [disabled]="creating()">
       {{ creating() ? 'Creating...' : 'Create role' }}
     </button>
   </form>

@@ -3,6 +3,12 @@
 
   h2 {
     margin-top: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  // Intro copy sits directly in the card — give it room before the first control.
+  > .hint {
+    margin: 0 0 1.5rem;
   }
 }
 
@@ -57,20 +63,20 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-top: 0.9rem;
+    margin-top: 1.5rem;
   }
 }
 
 .permissions {
   list-style: none;
-  margin: 0.9rem 0 0;
+  margin: 1.25rem 0 0;
   padding: 0;
   display: grid;
-  gap: 0.6rem;
+  gap: 1rem;
 
   &__item {
     display: grid;
-    gap: 0.1rem;
+    gap: 0.3rem;
 
     label {
       display: flex;
@@ -94,10 +100,23 @@
   }
 }
 
-.new-role__fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
+.new-role {
+  &__fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0 1.25rem;
+  }
+
+  // Sets the permission checkboxes apart from the name/description inputs above.
+  .permissions {
+    margin-top: 0.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--bw-border);
+  }
+
+  &__submit {
+    margin-top: 1.75rem;
+  }
 }
 
 .badge-default {
