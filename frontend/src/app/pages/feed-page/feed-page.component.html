@@ -66,25 +66,40 @@
             </div>
             <span class="nomination-card__date">{{ nomination.createdAt | date: 'MMM d, y' }}</span>
           </div>
-          <a class="nomination-card__nominee" [routerLink]="['/people', nomination.nomineeEmail]">
-            <app-avatar [email]="nomination.nomineeEmail" [name]="nomination.nomineeName" [size]="48"></app-avatar>
-            <h3>{{ nomination.nomineeName }}</h3>
-          </a>
+          @if (authService.can('person:view')) {
+            <a class="nomination-card__nominee" [routerLink]="['/people', nomination.nomineeEmail]">
+              <app-avatar [email]="nomination.nomineeEmail" [name]="nomination.nomineeName" [size]="48"></app-avatar>
+              <h3>{{ nomination.nomineeName }}</h3>
+            </a>
+          } @else {
+            <div class="nomination-card__nominee nomination-card__nominee--plain">
+              <app-avatar [email]="nomination.nomineeEmail" [name]="nomination.nomineeName" [size]="48"></app-avatar>
+              <h3>{{ nomination.nomineeName }}</h3>
+            </div>
+          }
           <p class="nomination-card__reason">{{ nomination.reason }}</p>
           <div class="nomination-card__footer">
             <p class="nomination-card__from">— {{ displayName(nomination) }}</p>
             <div class="reaction-bar">
               @for (type of reactionTypes; track type) {
-                <button
-                  class="reaction-btn"
-                  type="button"
-                  [class.active]="hasReacted(nomination, type)"
-                  [title]="reactionLabels[type] + ' this nomination'"
-                  (click)="onReactionClick(nomination, type)"
-                >
-                  <span class="reaction-btn__icon">{{ reactionEmoji[type] }}</span>
-                  <span class="reaction-btn__count">{{ reactionCount(nomination, type) }}</span>
-                </button>
+                @if (authService.can('nomination:react')) {
+                  <button
+                    class="reaction-btn"
+                    type="button"
+                    [class.active]="hasReacted(nomination, type)"
+                    [title]="reactionLabels[type] + ' this nomination'"
+                    (click)="onReactionClick(nomination, type)"
+                  >
+                    <span class="reaction-btn__icon">{{ reactionEmoji[type] }}</span>
+                    <span class="reaction-btn__count">{{ reactionCount(nomination, type) }}</span>
+                  </button>
+                } @else {
+                  <!-- Read-only: counts stay visible, but reacting is not permitted. -->
+                  <span class="reaction-btn reaction-btn--readonly" [title]="reactionLabels[type]">
+                    <span class="reaction-btn__icon">{{ reactionEmoji[type] }}</span>
+                    <span class="reaction-btn__count">{{ reactionCount(nomination, type) }}</span>
+                  </span>
+                }
               }
             </div>
           </div>

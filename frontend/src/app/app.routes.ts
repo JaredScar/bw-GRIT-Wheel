@@ -1,7 +1,10 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
+import { requirePermission } from './guards/permission.guard';
 
 export const routes: Routes = [
+  // Falls through to whichever page this account's access role allows: requirePermission on
+  // /nominate redirects onward when the account can't nominate.
   { path: '', redirectTo: 'nominate', pathMatch: 'full' },
   {
     path: 'login',
@@ -10,19 +13,19 @@ export const routes: Routes = [
   },
   {
     path: 'nominate',
-    canActivate: [authGuard],
+    canActivate: [authGuard, requirePermission('nomination:create')],
     loadComponent: () =>
       import('./pages/nominate-page/nominate-page.component').then((m) => m.NominatePageComponent),
   },
   {
     path: 'nominations',
-    canActivate: [authGuard],
+    canActivate: [authGuard, requirePermission('nomination:view')],
     loadComponent: () =>
       import('./pages/feed-page/feed-page.component').then((m) => m.FeedPageComponent),
   },
   {
     path: 'rounds',
-    canActivate: [authGuard],
+    canActivate: [authGuard, requirePermission('hall:view')],
     loadComponent: () =>
       import('./pages/rounds-page/rounds-page.component').then((m) => m.RoundsPageComponent),
   },
@@ -55,6 +58,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'access',
+        loadComponent: () =>
+          import('./pages/admin-access-page/admin-access-page.component').then(
+            (m) => m.AdminAccessPageComponent,
+          ),
+      },
+      {
         path: 'analytics',
         loadComponent: () =>
           import('./pages/admin-analytics-page/admin-analytics-page.component').then(
@@ -67,7 +77,7 @@ export const routes: Routes = [
   // deleting the page) so it can be re-enabled later without rebuilding it from scratch.
   // {
   //   path: 'leaderboard',
-  //   canActivate: [authGuard],
+  //   canActivate: [authGuard, requirePermission('person:view')],
   //   loadComponent: () =>
   //     import('./pages/leaderboard-page/leaderboard-page.component').then(
   //       (m) => m.LeaderboardPageComponent,
@@ -75,9 +85,17 @@ export const routes: Routes = [
   // },
   {
     path: 'people/:email',
-    canActivate: [authGuard],
+    canActivate: [authGuard, requirePermission('person:view')],
     loadComponent: () =>
       import('./pages/person-page/person-page.component').then((m) => m.PersonPageComponent),
+  },
+  // Terminal page for accounts whose access role grants nothing navigable — without it,
+  // a denied navigation would have nowhere to redirect to.
+  {
+    path: 'no-access',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/no-access-page/no-access-page.component').then((m) => m.NoAccessPageComponent),
   },
   { path: '**', redirectTo: 'nominate' },
 ];

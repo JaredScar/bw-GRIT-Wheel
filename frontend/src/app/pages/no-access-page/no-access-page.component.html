@@ -1,0 +1,14 @@
+<div class="page">
+  <div class="card no-access">
+    <h1>No access yet</h1>
+    <p>
+      You're signed in as <strong>{{ authService.currentUser()?.email }}</strong>, but your
+      access role
+      @if (authService.currentUser()?.accessRoleName) {
+        (<strong>{{ authService.currentUser()?.accessRoleName }}</strong>)
+      }
+      doesn't include any of the GRIT Award pages yet.
+    </p>
+    <p>Ask a GRIT admin to grant your account access.</p>
+  </div>
+</div>

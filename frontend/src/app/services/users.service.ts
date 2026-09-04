@@ -21,6 +21,10 @@ export class UsersService {
     return this.http.patch<ManagedUser>(`${this.baseUrl}/${id}`, { name });
   }
 
+  assignAccessRole(id: string, accessRoleId: string): Observable<ManagedUser> {
+    return this.http.patch<ManagedUser>(`${this.baseUrl}/${id}`, { accessRoleId });
+  }
+
   remove(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }

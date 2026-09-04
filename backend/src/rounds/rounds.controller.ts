@@ -1,4 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Permission } from '../access-control/permission.enum';
+import { RequirePermissions } from '../access-control/permissions.decorator';
 import { Role } from '../auth/role.enum';
 import { Roles } from '../auth/roles.decorator';
 import { CreateRoundDto } from './dto/create-round.dto';
@@ -9,6 +11,8 @@ import { RoundsService } from './rounds.service';
 export class RoundsController {
   constructor(private readonly roundsService: RoundsService) {}
 
+  // Backs the GRIT Hall of Names.
+  @RequirePermissions(Permission.HallView)
   @Get()
   findAll() {
     return this.roundsService.findAll();
@@ -22,6 +26,7 @@ export class RoundsController {
     return this.roundsService.getOrCreateCurrentOpenRound();
   }
 
+  @RequirePermissions(Permission.HallView)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.roundsService.findOne(id);

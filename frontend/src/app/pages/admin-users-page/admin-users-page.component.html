@@ -37,6 +37,9 @@
   @if (renameError()) {
     <div class="banner banner-error">{{ renameError() }}</div>
   }
+  @if (assignRoleError()) {
+    <div class="banner banner-error">{{ assignRoleError() }}</div>
+  }
 
   @if (loadingUsers()) {
     <p class="hint">Loading users...</p>
@@ -48,7 +51,8 @@
         <tr>
           <th>Name</th>
           <th>Email</th>
-          <th>Role</th>
+          <th>Access role</th>
+          <th>Admin</th>
           <th>Last login</th>
           <th></th>
         </tr>
@@ -71,6 +75,24 @@
               }
             </td>
             <td>{{ user.email }}</td>
+            <td>
+              <select
+                class="inline-edit"
+                [disabled]="assigningRoleUserId() === user.id || accessRoles().length === 0"
+                (change)="assignAccessRole(user, $any($event.target).value)"
+              >
+                @for (role of accessRoles(); track role.id) {
+                  <!-- [selected] rather than [value] on the select: the options are
+                       rendered in this same pass, so the select has nothing to match yet. -->
+                  <option [value]="role.id" [selected]="role.id === user.accessRoleId">
+                    {{ role.name }}
+                  </option>
+                }
+              </select>
+              @if (user.roles.includes('admin')) {
+                <span class="access-role-note">Admins bypass access roles</span>
+              }
+            </td>
             <td>
               @if (user.roles.includes('admin')) {
                 <span class="badge badge-admin">Admin</span>

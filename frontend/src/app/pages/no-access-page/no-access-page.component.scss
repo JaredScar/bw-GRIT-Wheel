@@ -1,0 +1,13 @@
+.no-access {
+  max-width: 34rem;
+  margin: 3rem auto;
+  text-align: center;
+
+  h1 {
+    margin-top: 0;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+}

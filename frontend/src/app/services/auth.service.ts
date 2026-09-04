@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { Permission } from '../models/permission';
 import { SessionUser } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
@@ -9,6 +10,19 @@ export class AuthService {
 
   readonly currentUser = signal<SessionUser | null>(null);
   readonly isAdmin = computed(() => this.currentUser()?.isAdmin ?? false);
+
+  private readonly permissions = computed(() => new Set(this.currentUser()?.permissions ?? []));
+
+  /**
+   * Whether the signed-in account may use a feature. The server enforces the same check on
+   * every request — this only decides what to render, so a stale session never grants
+   * access, it just shows a link that 403s.
+   *
+   * Admins are given every permission server-side, so there's no admin special-case here.
+   */
+  can(permission: Permission): boolean {
+    return this.permissions().has(permission);
+  }
 
   /** Resolves once the initial session check (cookie -> /me) has settled, one way or another. */
   readonly ready: Promise<void>;
