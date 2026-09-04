@@ -7,6 +7,7 @@ import { DirectoryService } from '../directory/directory.service';
 import { SlackNotificationService } from '../notifications/slack-notification.service';
 import { RoundsService } from '../rounds/rounds.service';
 import { CreateNominationDto } from './dto/create-nomination.dto';
+import { UpdateNominationDto } from './dto/update-nomination.dto';
 import { NominationUpvote } from './nomination-upvote.entity';
 import { Nomination } from './nomination.entity';
 import { ReactionType, REACTION_TYPES } from './reaction-type.enum';
@@ -21,6 +22,10 @@ export interface PublicNomination {
   reason: string;
   roundId: string;
   createdAt: Date;
+  /** Non-null once an admin has corrected this nomination; shown as an "edited" marker. */
+  editedAt: Date | null;
+  /** Only ever non-null in the admin-only deleted view — the feed never returns these. */
+  deletedAt: Date | null;
   // Kept for existing consumers (person page, leaderboard, analytics) that only ever
   // cared about the original thumbs-up reaction.
   upvoteCount: number;
@@ -39,6 +44,10 @@ function emptyReactionCounts(): Record<ReactionType, number> {
     (acc, type) => ({ ...acc, [type]: 0 }),
     {} as Record<ReactionType, number>,
   );
+}
+
+function sameCategories(a: GritCategory[], b: GritCategory[]): boolean {
+  return a.length === b.length && a.every((category) => b.includes(category));
 }
 
 @Injectable()
@@ -95,9 +104,14 @@ export class NominationsService {
     gritCategory?: GritCategory;
     nomineeEmail?: string;
     viewerEmail?: string;
+    /** Admin-only: also return soft-deleted nominations so they can be reviewed/restored. */
+    includeDeleted?: boolean;
   }): Promise<PublicNomination[]> {
     const qb = this.nominationsRepository.createQueryBuilder('n');
 
+    if (filters.includeDeleted) {
+      qb.withDeleted();
+    }
     if (filters.roundId) {
       qb.andWhere('n.roundId = :roundId', { roundId: filters.roundId });
     }
@@ -144,6 +158,120 @@ export class NominationsService {
       countMap.get(id) ?? emptyReactionCounts(),
       myReactionsMap.get(id) ?? [],
     );
+  }
+
+  /**
+   * Admin correction of a nomination — fixing a typo, a wrong nominee picked from the
+   * directory, or the wrong GRIT values ticked. Only the fields present on the DTO are
+   * touched, and the edit is stamped so the feed can show it was changed after the fact.
+   */
+  async adminUpdate(
+    id: string,
+    dto: UpdateNominationDto,
+    admin: SessionUser,
+  ): Promise<PublicNomination> {
+    const nomination = await this.nominationsRepository.findOne({ where: { id } });
+    if (!nomination) {
+      throw new NotFoundException('Nomination not found');
+    }
+
+    let changed = false;
+
+    if (dto.nomineeEmail !== undefined) {
+      const normalizedEmail = dto.nomineeEmail.trim().toLowerCase();
+      if (normalizedEmail !== nomination.nomineeEmail.trim().toLowerCase()) {
+        await this.assertNotWinningNomination(
+          id,
+          "This nomination decided a round winner, so it can't be pointed at a different person. Its wording and GRIT values can still be corrected.",
+        );
+
+        let nominee = await this.directoryService.findByEmail(normalizedEmail);
+        if (!nominee) {
+          if (!dto.nomineeName?.trim()) {
+            throw new BadRequestException('Please select the nominee from the list');
+          }
+          nominee = await this.directoryService.addPerson(normalizedEmail, dto.nomineeName);
+        }
+
+        nomination.nomineeName = nominee.name;
+        nomination.nomineeEmail = nominee.email;
+        changed = true;
+      }
+    }
+
+    if (dto.gritCategories !== undefined && !sameCategories(nomination.gritCategories, dto.gritCategories)) {
+      nomination.gritCategories = dto.gritCategories;
+      changed = true;
+    }
+
+    if (dto.reason !== undefined && dto.reason.trim() !== nomination.reason) {
+      nomination.reason = dto.reason.trim();
+      changed = true;
+    }
+
+    if (dto.isAnonymous !== undefined && dto.isAnonymous !== nomination.isAnonymous) {
+      nomination.isAnonymous = dto.isAnonymous;
+      changed = true;
+    }
+
+    // A no-op save shouldn't brand the nomination as edited — an admin can open the dialog,
+    // look, and close it without leaving a mark on someone else's recognition.
+    if (!changed) {
+      return this.findOnePublic(id, admin.email);
+    }
+
+    nomination.editedAt = new Date();
+    nomination.editedByEmail = admin.email.trim().toLowerCase();
+    await this.nominationsRepository.save(nomination);
+
+    return this.findOnePublic(id, admin.email);
+  }
+
+  /**
+   * Soft delete: the row stays put with `deletedAt` set, so it drops out of the feed, the
+   * wheel, profiles and the leaderboard, but a mistaken removal is one click from being
+   * undone. Reactions are left attached and come back with it on restore.
+   */
+  async adminDelete(id: string, admin: SessionUser): Promise<void> {
+    const nomination = await this.nominationsRepository.findOne({ where: { id } });
+    if (!nomination) {
+      throw new NotFoundException('Nomination not found');
+    }
+
+    await this.assertNotWinningNomination(
+      id,
+      "This nomination decided a round winner and can't be deleted. Correct its wording instead if something's wrong with it.",
+    );
+
+    nomination.deletedByEmail = admin.email.trim().toLowerCase();
+    await this.nominationsRepository.save(nomination);
+    await this.nominationsRepository.softDelete(id);
+  }
+
+  /** Undoes {@link adminDelete}, putting the nomination and its reactions back in the feed. */
+  async adminRestore(id: string, admin: SessionUser): Promise<PublicNomination> {
+    const nomination = await this.nominationsRepository.findOne({
+      where: { id },
+      withDeleted: true,
+    });
+    if (!nomination) {
+      throw new NotFoundException('Nomination not found');
+    }
+    if (!nomination.deletedAt) {
+      throw new BadRequestException('This nomination has not been deleted');
+    }
+
+    await this.nominationsRepository.restore(id);
+    await this.nominationsRepository.update(id, { deletedByEmail: null });
+
+    return this.findOnePublic(id, admin.email);
+  }
+
+  private async assertNotWinningNomination(id: string, message: string): Promise<void> {
+    const decidedRound = await this.roundsService.findRoundDecidedBy(id);
+    if (decidedRound) {
+      throw new BadRequestException(message);
+    }
   }
 
   async findEntitiesByRound(roundId: string): Promise<Nomination[]> {
@@ -244,6 +372,8 @@ export class NominationsService {
       reason: nomination.reason,
       roundId: nomination.roundId,
       createdAt: nomination.createdAt,
+      editedAt: nomination.editedAt ?? null,
+      deletedAt: nomination.deletedAt ?? null,
       upvoteCount: reactionCounts[ReactionType.THUMBS_UP] ?? 0,
       hasUpvoted: myReactions.includes(ReactionType.THUMBS_UP),
       reactionCounts,

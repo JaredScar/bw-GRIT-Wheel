@@ -199,3 +199,53 @@
     color: var(--bw-text-muted);
   }
 }
+
+// Admin moderation. Kept visually quiet so the feed still reads as a celebration wall
+// rather than a moderation queue.
+.filter-chip--admin {
+  margin-left: auto;
+  border-style: dashed;
+
+  &.active {
+    background: var(--bw-navy);
+    border-color: var(--bw-navy);
+    border-style: solid;
+  }
+}
+
+.admin-actions {
+  display: flex;
+  gap: 0.4rem;
+  padding-top: 0.2rem;
+}
+
+.nomination-card {
+  &__edited {
+    color: var(--bw-text-muted);
+    font-style: italic;
+  }
+
+  &__deleted-note {
+    margin: 0;
+    padding: 0.45rem 0.6rem;
+    border-radius: 8px;
+    background: #fdecec;
+    color: #8c1c1c;
+    font-size: 0.78rem;
+    line-height: 1.4;
+  }
+
+  // Deleted nominations are only ever visible to an admin who asked to see them, so dim
+  // the content while leaving the action buttons at full contrast.
+  &--deleted {
+    border-color: #f0b8b8;
+
+    .nomination-card__badges,
+    .nomination-card__date,
+    .nomination-card__nominee,
+    .nomination-card__reason,
+    .nomination-card__footer {
+      opacity: 0.55;
+    }
+  }
+}

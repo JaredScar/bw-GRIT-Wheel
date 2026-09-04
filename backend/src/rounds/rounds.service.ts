@@ -96,6 +96,15 @@ export class RoundsService {
     });
   }
 
+  /**
+   * The round this nomination was recorded as the winning entry for, if any. Guards edits:
+   * the nomination that produced an announced winner can't be deleted or re-pointed at a
+   * different person without the round history contradicting what was announced.
+   */
+  async findRoundDecidedBy(nominationId: string): Promise<Round | null> {
+    return this.roundsRepository.findOne({ where: { winnerNominationId: nominationId } });
+  }
+
   async getWheelEntries(roundId: string): Promise<WheelEntry[]> {
     const nominations = await this.nominationsRepository.find({ where: { roundId } });
 

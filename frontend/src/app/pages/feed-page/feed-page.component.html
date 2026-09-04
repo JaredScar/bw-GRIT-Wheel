@@ -44,6 +44,17 @@
         {{ categoryLabels[category] }}
       </button>
     }
+
+    @if (authService.isAdmin()) {
+      <button
+        class="filter-chip filter-chip--admin"
+        [class.active]="showDeleted()"
+        type="button"
+        (click)="toggleShowDeleted()"
+      >
+        {{ showDeleted() ? '✓ Showing deleted' : 'Show deleted' }}
+      </button>
+    }
   </div>
 
   @if (loading()) {
@@ -55,7 +66,13 @@
   } @else {
     <div class="nomination-grid">
       @for (nomination of filteredNominations(); track nomination.id) {
-        <article class="card nomination-card">
+        <article class="card nomination-card" [class.nomination-card--deleted]="isDeleted(nomination)">
+          @if (isDeleted(nomination)) {
+            <p class="nomination-card__deleted-note">
+              Deleted {{ nomination.deletedAt | date: 'MMM d, y' }} — hidden from everyone else,
+              and left out of the wheel, profiles and the leaderboard.
+            </p>
+          }
           <div class="nomination-card__header">
             <div class="nomination-card__badges">
               @for (category of nomination.gritCategories; track category) {
@@ -64,7 +81,14 @@
                 </span>
               }
             </div>
-            <span class="nomination-card__date">{{ nomination.createdAt | date: 'MMM d, y' }}</span>
+            <span class="nomination-card__date">
+              {{ nomination.createdAt | date: 'MMM d, y' }}
+              @if (nomination.editedAt) {
+                <span class="nomination-card__edited" [title]="'Edited by an admin on ' + (nomination.editedAt | date: 'MMM d, y')">
+                  · edited
+                </span>
+              }
+            </span>
           </div>
           @if (authService.can('person:view')) {
             <a class="nomination-card__nominee" [routerLink]="['/people', nomination.nomineeEmail]">
@@ -78,6 +102,22 @@
             </div>
           }
           <p class="nomination-card__reason">{{ nomination.reason }}</p>
+          @if (authService.isAdmin()) {
+            <div class="admin-actions">
+              @if (isDeleted(nomination)) {
+                <button type="button" class="btn btn-secondary btn-small" (click)="restore(nomination)">
+                  Restore
+                </button>
+              } @else {
+                <button type="button" class="btn btn-secondary btn-small" (click)="startEdit(nomination)">
+                  Edit
+                </button>
+                <button type="button" class="btn btn-danger btn-small" (click)="startDelete(nomination)">
+                  Delete
+                </button>
+              }
+            </div>
+          }
           <div class="nomination-card__footer">
             <p class="nomination-card__from">— {{ displayName(nomination) }}</p>
             <div class="reaction-bar">
@@ -106,5 +146,31 @@
         </article>
       }
     </div>
+  }
+
+  @if (editing(); as target) {
+    <app-nomination-edit-dialog
+      [nomination]="target"
+      [saving]="savingEdit()"
+      [error]="editError()"
+      (saved)="saveEdit($event)"
+      (cancelled)="cancelEdit()"
+    ></app-nomination-edit-dialog>
+  }
+
+  @if (deleting(); as target) {
+    <app-confirm-dialog
+      title="Delete this nomination?"
+      [message]="
+        'This removes ' +
+        target.nomineeName +
+        '\'s nomination from the feed, the wheel, their profile and the leaderboard. It can be brought back from the ‘Show deleted’ filter.'
+      "
+      confirmLabel="Delete nomination"
+      [confirming]="confirmingDelete()"
+      [error]="deleteError()"
+      (confirmed)="confirmDelete()"
+      (cancelled)="cancelDelete()"
+    ></app-confirm-dialog>
   }
 </div>

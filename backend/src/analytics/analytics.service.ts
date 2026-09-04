@@ -44,7 +44,14 @@ export class AnalyticsService {
     const [totalNominations, totalRounds, totalUpvotes, rounds] = await Promise.all([
       this.nominationsRepository.count(),
       this.roundsRepository.count(),
-      this.upvotesRepository.count({ where: { type: ReactionType.THUMBS_UP } }),
+      // Joined through nominations rather than counted straight off the reactions table:
+      // reactions on a soft-deleted nomination stay in the database so a restore brings
+      // them back, but they shouldn't show up in the totals while it's deleted.
+      this.upvotesRepository
+        .createQueryBuilder('u')
+        .innerJoin(Nomination, 'n', 'n.id = u.nominationId AND n."deletedAt" IS NULL')
+        .where('u.type = :reactionType', { reactionType: ReactionType.THUMBS_UP })
+        .getCount(),
       this.roundsRepository.find(),
     ]);
 
@@ -53,7 +60,17 @@ export class AnalyticsService {
         .createQueryBuilder()
         .select('category')
         .addSelect('COUNT(*)', 'count')
-        .from((qb) => qb.select('UNNEST(n."gritCategories")', 'category').from(Nomination, 'n'), 'categories')
+        // Soft-deleted rows are filtered by hand here: TypeORM only adds its automatic
+        // `deletedAt IS NULL` to the query builder's own root entity, not to a subquery
+        // this one selects FROM.
+        .from(
+          (qb) =>
+            qb
+              .select('UNNEST(n."gritCategories")', 'category')
+              .from(Nomination, 'n')
+              .where('n."deletedAt" IS NULL'),
+          'categories',
+        )
         .groupBy('category')
         .getRawMany<{ category: string; count: string }>(),
       this.nominationsRepository

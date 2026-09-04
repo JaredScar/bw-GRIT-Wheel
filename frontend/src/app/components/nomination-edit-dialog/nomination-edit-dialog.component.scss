@@ -1,0 +1,179 @@
+// Backdrop and shell match app-confirm-dialog so the two admin modals look like one thing;
+// this one is wider because it holds a form rather than a sentence.
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 31, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--bw-surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 560px;
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(20, 24, 31, 0.25);
+
+  h2 {
+    margin: 0 0 0.4rem;
+    color: var(--bw-navy);
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 1.25rem;
+  }
+}
+
+.edit-modal {
+  &__intro {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+    color: var(--bw-text-muted);
+    line-height: 1.5;
+  }
+
+  textarea {
+    min-height: 120px;
+  }
+}
+
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
+  margin-top: 0.4rem;
+}
+
+.combobox {
+  position: relative;
+
+  input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  &__list {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 0.3rem);
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 0.3rem;
+    list-style: none;
+    background: #fff;
+    border: 1px solid var(--bw-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(20, 24, 31, 0.12);
+    max-height: 240px;
+    overflow-y: auto;
+
+    button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 0.6rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: var(--bw-text);
+      cursor: pointer;
+
+      &:hover {
+        background: var(--bw-bg-muted, #f2f4f8);
+      }
+    }
+
+    .combobox__add {
+      color: var(--bw-blue);
+      font-weight: 600;
+    }
+  }
+
+  &__empty {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 0.3rem);
+    left: 0;
+    right: 0;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.82rem;
+    color: var(--bw-text-muted);
+    background: #fff;
+    border: 1px solid var(--bw-border);
+    border-radius: 8px;
+
+    p {
+      margin: 0 0 0.5rem;
+    }
+  }
+
+  &__add {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.85rem;
+    font-family: inherit;
+    font-weight: 600;
+    color: var(--bw-blue);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--bw-bg-muted, #f2f4f8);
+    }
+  }
+}
+
+.add-nominee-prompt {
+  border: 1px solid var(--bw-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  background: #f8f9fb;
+
+  label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+
+  input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+  }
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  text-decoration: underline;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
