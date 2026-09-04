@@ -326,6 +326,31 @@ npm run start:dev
 You'll need a local PostgreSQL instance matching the `.env` values (or run just the
 `db` service with `docker compose up db`).
 
+### Signing in locally
+
+Google OAuth needs a registered client and a publicly reachable callback URL, so
+**"Continue with Google" cannot work on localhost** with placeholder credentials. For
+local work, set this in `backend/.env`:
+
+```
+DEV_LOGIN_ENABLED=true
+```
+
+`/login` then grows a dev sign-in form: type any `@bitwarden.com` address and you're
+signed in. The account is provisioned exactly as a first Google sign-in would — so an
+address listed in `ADMIN_EMAILS` comes out as an admin, and everyone else lands on the
+default access role.
+
+This is a **real authentication bypass** — it trades a password for an email address.
+It's off unless the variable is set to exactly `true`, the route 404s when it's off,
+and the backend **refuses to boot** if the flag is set alongside `NODE_ENV=production`
+or `COOKIE_SECURE=true`, so it can't reach a deployment unnoticed. See
+`backend/src/auth/dev-login.enabled.ts`.
+
+Alternatively, register a real OAuth client with
+`http://localhost:3000/api/auth/google/callback` as an authorized redirect URI (see
+[Setting up Google sign-in](#setting-up-google-sign-in)) and leave the flag off.
+
 **Frontend**
 
 ```bash

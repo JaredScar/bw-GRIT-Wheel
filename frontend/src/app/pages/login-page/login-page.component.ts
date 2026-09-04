@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -24,6 +25,12 @@ export class LoginPageComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly redirecting = signal(false);
 
+  /** Only true against a backend running with DEV_LOGIN_ENABLED=true. */
+  readonly devLoginAvailable = signal(false);
+  readonly devEmail = signal('');
+  readonly devSigningIn = signal(false);
+  readonly devError = signal<string | null>(null);
+
   async ngOnInit(): Promise<void> {
     const error = this.route.snapshot.queryParamMap.get('error');
     if (error) {
@@ -33,6 +40,31 @@ export class LoginPageComponent implements OnInit {
     await this.authService.ready;
     if (this.authService.currentUser()) {
       this.router.navigateByUrl('/nominate');
+      return;
+    }
+
+    this.devLoginAvailable.set(await this.authService.devLoginEnabled());
+  }
+
+  async devSignIn(): Promise<void> {
+    const email = this.devEmail().trim();
+    if (!email || this.devSigningIn()) return;
+
+    this.devError.set(null);
+    this.devSigningIn.set(true);
+
+    try {
+      await this.authService.devLogin(email);
+      // Straight to the router: requirePermission() sends them onward if this account
+      // can't nominate, exactly as it would after a real sign-in.
+      await this.router.navigateByUrl('/nominate');
+    } catch (err) {
+      const message = (err as HttpErrorResponse).error?.message;
+      this.devError.set(
+        (Array.isArray(message) ? message[0] : message) ?? 'Dev sign-in failed.',
+      );
+    } finally {
+      this.devSigningIn.set(false);
     }
   }
 

@@ -6,6 +6,7 @@ import { In, Repository } from 'typeorm';
 import { AccessControlService } from '../access-control/access-control.service';
 import { ALL_PERMISSIONS } from '../access-control/permission.enum';
 import { User } from '../users/user.entity';
+import { assertDevLoginIsSafe } from './dev-login.enabled';
 import { GoogleProfile } from './google-oauth.service';
 import { Role } from './role.enum';
 import { SessionUser } from './session-user';
@@ -25,6 +26,9 @@ export class AuthService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
+    // Throws, deliberately taking the app down, if the dev sign-in bypass is enabled
+    // somewhere it shouldn't be.
+    assertDevLoginIsSafe(this.configService);
     await this.grantAdminToConfiguredEmails();
   }
 
@@ -113,6 +117,22 @@ export class AuthService implements OnModuleInit {
     );
 
     return { jwt, user };
+  }
+
+  /**
+   * Local-development sign-in. Provisions the account exactly as a first Google sign-in
+   * would — including the ADMIN_EMAILS promotion and the default access role — so what you
+   * exercise locally matches production behaviour. Side effect of that reuse: it clears any
+   * stored profile picture, since a dev sign-in carries no Google profile.
+   *
+   * Callers must check `isDevLoginEnabled()` first; this method does not re-check.
+   */
+  async signInAsDevUser(email: string): Promise<{ jwt: string; user: User }> {
+    return this.signInWithGoogleProfile({
+      email,
+      name: null,
+      picture: null,
+    });
   }
 
   async getUserById(id: string): Promise<User | null> {

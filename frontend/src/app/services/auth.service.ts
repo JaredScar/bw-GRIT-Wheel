@@ -42,6 +42,30 @@ export class AuthService {
     }
   }
 
+  /** Whether the backend is offering the local-development sign-in bypass. */
+  async devLoginEnabled(): Promise<boolean> {
+    try {
+      const config = await firstValueFrom(
+        this.http.get<{ devLoginEnabled: boolean }>(`${this.baseUrl}/config`),
+      );
+      return config.devLoginEnabled;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Local development only — the backend 404s this route unless DEV_LOGIN_ENABLED=true.
+   * Signs in as the given @bitwarden.com address, creating the account if needed.
+   */
+  async devLogin(email: string): Promise<SessionUser> {
+    const user = await firstValueFrom(
+      this.http.post<SessionUser>(`${this.baseUrl}/dev-login`, { email }),
+    );
+    this.currentUser.set(user);
+    return user;
+  }
+
   async logout(): Promise<void> {
     await firstValueFrom(this.http.post(`${this.baseUrl}/logout`, {}));
     this.currentUser.set(null);
